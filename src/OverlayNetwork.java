@@ -20,11 +20,7 @@ public class OverlayNetwork {
             } else if (mode.equals("2")) {
                 //Starts a node with the given port and ip address
 
-                String ip = args[1];
-                String port = args[2];
-                String username = args[3];
-
-                Node node = new Node(ip, port, username);
+                Node node = new Node();
                 node.initiateNode();
 
                 //TODO:Validate arguments
