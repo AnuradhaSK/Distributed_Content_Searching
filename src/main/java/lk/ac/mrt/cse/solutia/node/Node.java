@@ -1,5 +1,7 @@
 package lk.ac.mrt.cse.solutia.node;
 
+import lk.ac.mrt.cse.solutia.utils.Config;
+
 import java.util.Scanner;
 import java.io.*;
 import java.net.*;
@@ -13,9 +15,8 @@ public class Node {
     private int port;
     private String username;
 
-    //TODO::Put these to a config.properties file
-    private String serverHostName = "10.10.23.109"; //Bootstrap server ip
-    private int serverHostPort = 55555; //Bootstrap server port
+    private String serverHostName = Config.BOOTSTRAP_IP; //Bootstrap server ip
+    private int serverHostPort = Config.BOOTSTRAP_PORT; //Bootstrap server port
 
 
     public void initiateNode() {

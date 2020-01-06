@@ -1,5 +1,7 @@
 package lk.ac.mrt.cse.solutia.bootsrtap_server;
 
+import lk.ac.mrt.cse.solutia.utils.Config;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -17,7 +19,7 @@ public class BootstrapServer {
         List<Neighbour> nodes = new ArrayList<Neighbour>();
 
         try {
-            sock = new DatagramSocket(55555);
+            sock = new DatagramSocket(Config.BOOTSTRAP_PORT);
 
             echo("Bootstrap Server created at 55555. Waiting for incoming data...");
 
@@ -37,7 +39,7 @@ public class BootstrapServer {
                 String length = st.nextToken();
                 String command = st.nextToken();
 
-                if (command.equals("REG")) {
+                if (command.equals(Config.REG)) {
                     String reply = "REGOK ";
 
                     String ip = st.nextToken();
@@ -84,7 +86,7 @@ public class BootstrapServer {
 
                     DatagramPacket dpReply = new DatagramPacket(reply.getBytes(), reply.getBytes().length, incoming.getAddress(), incoming.getPort());
                     sock.send(dpReply);
-                } else if (command.equals("UNREG")) {
+                } else if (command.equals(Config.UNREG)) {
                     String ip = st.nextToken();
                     int port = Integer.parseInt(st.nextToken());
                     String username = st.nextToken();
@@ -96,7 +98,7 @@ public class BootstrapServer {
                             sock.send(dpReply);
                         }
                     }
-                } else if (command.equals("ECHO")) {
+                } else if (command.equals(Config.ECHO)) {
                     for (int i = 0; i < nodes.size(); i++) {
                         echo(nodes.get(i).getIp() + " " + nodes.get(i).getPort() + " " + nodes.get(i).getUsername());
                     }
