@@ -1,19 +1,23 @@
 package lk.ac.mrt.cse.solutia.node;
 
+import lk.ac.mrt.cse.solutia.bootsrtap_server.Neighbour;
 import lk.ac.mrt.cse.solutia.utils.Config;
 
+import java.util.Random;
 import java.util.Scanner;
 import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
+import java.util.StringTokenizer;
 
 import static java.lang.String.format;
 
-public class Node {
+public class Node implements Runnable {
 
     private String ip;
     private int port;
     private String username;
+    private ArrayList<NodeNeighbour> neighboursList = new ArrayList<NodeNeighbour>();
 
     private String serverHostName = Config.BOOTSTRAP_IP; //Bootstrap server ip
     private int serverHostPort = Config.BOOTSTRAP_PORT; //Bootstrap server port
@@ -63,10 +67,17 @@ public class Node {
                 System.out.println("Request is successful. " + username + " registered as first node in the system");
             } else if (nodeCount.equals("1")) {
                 // request is successful, 1 contact will be returned
+                String[] neighbour1 = reply.substring(13).split("\\s+");
+                neighboursList.add(new NodeNeighbour(neighbour1[0], Integer.parseInt(neighbour1[1])));
                 System.out.println("Request is successful. " + username + " registered as second node in the system. Sending 1 node contact to join with...");
+                sendJoinRequests();
             } else if (nodeCount.equals("2")) {
                 // request is successful, 2 contacts will be returned
+                String[] neighbour1 = reply.substring(13).split("\\s+");
+                neighboursList.add(new NodeNeighbour(neighbour1[0], Integer.parseInt(neighbour1[1])));
+                neighboursList.add(new NodeNeighbour(neighbour1[2], Integer.parseInt(neighbour1[3])));
                 System.out.println("Request is successful. Sending 2 node contacts to join with...");
+                sendJoinRequests();
             } else {
                 String errorCode = reply.substring(11, 15);
                 if (errorCode.equals("9999")) {
@@ -85,28 +96,21 @@ public class Node {
                 }
             }
 
-            while (true) {
-                userInput = scanner.next();
+            Thread listner = new Thread(this);
+            listner.start();
 
-                /*switch (userInput) {
-                    case "UNREG":
-                        //do the job number 1
-                        System.out.println("done with job number 1");
-                        break;
-
-                    case "SEARCH":
-                        //do the job number 2
-                        System.out.println("done with job number 2");
-                        break;
-
-                    default:
-                        //inform user in case of invalid choice.
-                        System.out.println("Invalid command.");*/
-                //}
-
-
-            }
-
+//            while (true) {
+//                if (userInput.equals(Config.UNREG)) {//do the job number 1
+//                    System.out.println("done with job number 1");
+//
+//                } else if (userInput.equals(Config.SER)) {//do the job number 2
+//                    System.out.println("done with job number 2");
+//
+//                }
+//                else {//inform user in case of invalid choice.
+//                    System.out.println("Invalid command.");
+//                }
+//            }
 
         } catch (SocketTimeoutException ex) {
             System.out.println("Timeout error: " + ex.getMessage());
@@ -117,4 +121,85 @@ public class Node {
         }
     }
 
+    private void sendJoinRequests() throws IOException {
+        DatagramSocket socket = new DatagramSocket();
+
+        String message = Config.JOIN + " " + ip + " " + port;
+        int msgLength = message.length() + 5;
+        message = format("%04d", msgLength) + " " + message;
+
+        for (NodeNeighbour node : neighboursList) {
+            InetAddress address = InetAddress.getByName(node.getIp());
+            DatagramPacket request = new DatagramPacket(message.getBytes(), message.getBytes().length, address, node.getPort());
+            socket.send(request);
+            System.out.println("Request sent: " + message);
+        }
+    }
+
+    public void run() {
+        System.out.println("Node is listening on port " + port);
+        DatagramSocket sock = null;
+        String dataReceived;
+        while (true) {
+
+            try {
+                sock = new DatagramSocket(port);
+
+                while (true) {
+                    byte[] buffer = new byte[65536];
+                    DatagramPacket incoming = new DatagramPacket(buffer, buffer.length);
+                    sock.receive(incoming);
+
+                    byte[] data = incoming.getData();
+                    dataReceived = new String(data, 0, incoming.getLength());
+
+                    System.out.println("Message received from address " + incoming.getAddress().getHostAddress() + " : " + incoming.getPort() + " - " + dataReceived);
+
+                    StringTokenizer st = new StringTokenizer(dataReceived, " ");
+
+                    String length = st.nextToken();
+                    String command = st.nextToken();
+
+                    if (command.equals(Config.JOIN)) {
+
+                        String reply = Config.JOINOK + " 0";
+                        int msgLength = reply.length() + 5;
+                        reply = format("%04d", msgLength) + " " + reply;
+
+                        String ip = st.nextToken();
+                        int port = Integer.parseInt(st.nextToken());
+
+                        System.out.println(ip + ":" + port + " is joining node " + username);
+                        neighboursList.add(new NodeNeighbour(ip, port));
+
+                        DatagramPacket dpReply = new DatagramPacket(reply.getBytes(), reply.getBytes().length, incoming.getAddress(), incoming.getPort());
+                        sock.send(dpReply);
+                    } else if (command.equals(Config.JOINOK)) {
+                        String status = st.nextToken();
+                        if (status.equals("0")) {
+                            System.out.println("Join successful");
+                        } else if (status.equals("9999")) {
+                            System.out.println("Error while adding new node to routing table");
+                        }
+                    } else if (command.equals(Config.ECHO)) {
+
+                    } else if (command.equals(Config.ECHO)) {
+
+                    } else if (command.equals(Config.ECHO)) {
+
+                    } else if (command.equals(Config.ECHO)) {
+
+                    } else if (command.equals(Config.ECHO)) {
+
+                    } else if (command.equals(Config.ECHO)) {
+
+                    }
+
+                }
+            } catch (IOException e) {
+                System.err.println("IOException " + e);
+            }
+
+        }
+    }
 }
