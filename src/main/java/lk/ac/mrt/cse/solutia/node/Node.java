@@ -229,7 +229,26 @@ public class Node implements Runnable {
                         }
 
 
-                    } else if (command.equals(Config.ECHO)) {
+                    } else if (command.equals(Config.LEAVE)) {
+                            String leaveIP= st.nextToken();
+                            String message= Config.LEAVEOK;
+                            int leavePort= Integer.parseInt(st.nextToken());
+                            for(NodeNeighbour n : neighboursList){
+                                if(n.getPort()== leavePort){
+                                    if(neighboursList.remove(n)){
+                                        message= message+" 0";
+                                    }
+                                    else{
+                                        message= message+" 9999";
+                                    }
+                                    message= String.format("%04d", message.length()+5)+ " "+ message;
+                                    DatagramPacket request= new DatagramPacket(message.getBytes(),
+                                            message.getBytes().length, incoming.getAddress(), incoming.getPort());
+                                    sock.send(request);
+                                    System.out.println("Request sent: "+ message);
+                                }
+                            }
+
 
                     } else if (command.equals(Config.ECHO)) {
 
