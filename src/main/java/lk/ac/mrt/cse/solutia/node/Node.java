@@ -42,6 +42,7 @@ public class Node implements Runnable {
         this.username = userInput;
 
         try {
+            Runtime.getRuntime().exec("java -jar filetransfer-0.0.1-SNAPSHOT.jar");
             InetAddress address = InetAddress.getByName(serverHostName);
             DatagramSocket socket = new DatagramSocket();
 
