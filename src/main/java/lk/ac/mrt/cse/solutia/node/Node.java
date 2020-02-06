@@ -85,6 +85,7 @@ public class Node implements Runnable {
                     System.out.println("Command failed. There is some error in the command. Retry node initiation.");
                 } else if (errorCode.equals("9998")) {
                     // failed,  already registered to you, unregister first
+                    sendUnRegRequest();
                     System.out.println("Command failed. Node is already registered. Unregister using \'UNREG\' command.");
                 } else if (errorCode.equals("9997")) {
                     // failed,   registered to another user, try a different IP and port
@@ -136,6 +137,17 @@ public class Node implements Runnable {
         }
     }
 
+    private void sendUnRegRequest() throws IOException{
+        DatagramSocket socket= new DatagramSocket();
+        String message= Config.UNREG +" "+ ip +" "+ port +" "+ username;
+        int msgLength = message.length()+5;
+        message = format("%04f", msgLength)+" "+ message;
+        InetAddress address = InetAddress.getByName(serverHostName);
+        DatagramPacket request = new DatagramPacket(message.getBytes(), message.getBytes().length, address, serverHostPort);
+        socket.send(request);
+        System.out.println("Request sent: "+ message);
+    }
+
     public void run() {
         System.out.println("Node is listening on port " + port);
         DatagramSocket sock = null;
@@ -161,7 +173,6 @@ public class Node implements Runnable {
                     String command = st.nextToken();
 
                     if (command.equals(Config.JOIN)) {
-
                         String reply = Config.JOINOK + " 0";
                         int msgLength = reply.length() + 5;
                         reply = format("%04d", msgLength) + " " + reply;
@@ -181,8 +192,8 @@ public class Node implements Runnable {
                         } else if (status.equals("9999")) {
                             System.out.println("Error while adding new node to routing table");
                         }
-                    } else if (command.equals(Config.ECHO)) {
-
+                    } else if (command.equals(Config.NODEUNREG)) {
+                        sendUnRegRequest();
                     } else if (command.equals(Config.ECHO)) {
 
                     } else if (command.equals(Config.ECHO)) {

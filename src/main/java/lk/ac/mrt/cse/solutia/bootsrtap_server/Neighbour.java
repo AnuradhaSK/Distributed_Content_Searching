@@ -1,6 +1,6 @@
 package lk.ac.mrt.cse.solutia.bootsrtap_server;
 
-class Neighbour {
+public class Neighbour {
     private String ip;
     private int port;
     private String username;

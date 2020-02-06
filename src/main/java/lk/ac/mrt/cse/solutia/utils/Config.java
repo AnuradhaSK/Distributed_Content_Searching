@@ -24,5 +24,6 @@ public class Config {
     public static final String QUERY = "QUERY";
     public static final String PING = "PING";
     public static final String PINGOK = "PINGOK";
+    public static final String NODEUNREG = "NODEUNREG";
     public static final String ECHO = "ECHO";
 }
