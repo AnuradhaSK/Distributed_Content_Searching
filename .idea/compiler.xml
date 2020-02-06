@@ -7,10 +7,12 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="distributed_content_searching" />
+        <module name="Distributed_Content_Searching" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="distributed_content_searching" target="1.5" />
+      <module name="Distributed_Content_Searching" target="1.5" />
     </bytecodeTargetLevel>
   </component>
 </project>
