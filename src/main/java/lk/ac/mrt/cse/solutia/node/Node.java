@@ -3,12 +3,9 @@ package lk.ac.mrt.cse.solutia.node;
 import lk.ac.mrt.cse.solutia.bootsrtap_server.Neighbour;
 import lk.ac.mrt.cse.solutia.utils.Config;
 
-import java.util.Random;
-import java.util.Scanner;
+import java.util.*;
 import java.io.*;
 import java.net.*;
-import java.util.ArrayList;
-import java.util.StringTokenizer;
 
 import static java.lang.String.format;
 
@@ -18,6 +15,8 @@ public class Node implements Runnable {
     private int port;
     private String username;
     private ArrayList<NodeNeighbour> neighboursList = new ArrayList<NodeNeighbour>();
+    private String[] files; //files that owned by the node
+    HashMap<String, String> queries = new HashMap<String, String>();
 
     private String serverHostName = Config.BOOTSTRAP_IP; //Bootstrap server ip
     private int serverHostPort = Config.BOOTSTRAP_PORT; //Bootstrap server port
@@ -146,6 +145,21 @@ public class Node implements Runnable {
         DatagramPacket request = new DatagramPacket(message.getBytes(), message.getBytes().length, address, serverHostPort);
         socket.send(request);
         System.out.println("Request sent: "+ message);
+    }
+
+    private List<String> search(String query) {
+        List<String> resultFiles = new ArrayList<String>();
+        StringTokenizer st = new StringTokenizer(query, " ");
+
+        while(st.hasMoreTokens()) {
+            String token = st.nextToken();
+            for (String file: files) {
+                if (file.toLowerCase().contains(token.toLowerCase())) {
+                    resultFiles.add(file);
+                }
+            }
+        }
+        return resultFiles;
     }
 
     public void run() {
