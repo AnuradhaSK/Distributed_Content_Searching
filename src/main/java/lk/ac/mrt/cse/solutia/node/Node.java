@@ -208,7 +208,17 @@ public class Node implements Runnable {
                         }
                     } else if (command.equals(Config.NODEUNREG)) {
                         sendUnRegRequest();
-                    } else if (command.equals(Config.ECHO)) {
+
+                    } else if (command.equals(Config.UNROK)) {
+                        for( NodeNeighbour n : neighboursList){
+                            String message= Config.LEAVE +" "+ ip +" "+ port;
+                            message = format("%04d", message.length()+5)+" "+ message;
+                            InetAddress address = InetAddress.getByName(n.getIp());
+                            DatagramPacket request= new DatagramPacket(message.getBytes(), message.getBytes().length, address, n.getPort());
+                            sock.send(request);
+                            System.out.println("Request sent: "+ message);
+                        }
+
 
                     } else if (command.equals(Config.ECHO)) {
 
@@ -218,6 +228,7 @@ public class Node implements Runnable {
 
                     } else if (command.equals(Config.ECHO)) {
 
+                    } else if (command.equals(Config.ECHO)) {
                     }
 
                 }
