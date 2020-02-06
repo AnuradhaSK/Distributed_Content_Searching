@@ -4,6 +4,12 @@ import lk.ac.mrt.cse.solutia.bootsrtap_server.Neighbour;
 import lk.ac.mrt.cse.solutia.utils.Config;
 
 import java.util.*;
+import lk.ac.mrt.cse.solutia.model.File;
+
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.Random;
+import java.util.Scanner;
 import java.io.*;
 import java.net.*;
 
@@ -21,8 +27,10 @@ public class Node implements Runnable {
     private String serverHostName = Config.BOOTSTRAP_IP; //Bootstrap server ip
     private int serverHostPort = Config.BOOTSTRAP_PORT; //Bootstrap server port
 
-
     public void initiateNode() {
+
+        File file = new lk.ac.mrt.cse.solutia.model.File();
+        file.fileGenerate();
         String userInput;
         Scanner scanner = new Scanner(System.in);
 

@@ -21,6 +21,8 @@ public class OverlayNetwork {
                 //Starts a node with the given port and ip address
 
                 Node node = new Node();
+
+
                 node.initiateNode();
 
                 //TODO:Validate arguments
