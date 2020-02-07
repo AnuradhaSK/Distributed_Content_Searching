@@ -20,8 +20,10 @@ public class Node implements Runnable {
     private DatagramSocket socket;
     private ArrayList<NodeNeighbour> neighboursList = new ArrayList<NodeNeighbour>();
     private ArrayList<String> files = new ArrayList<>(); //files that owned by the node
-    private HashMap<String, String> queryResults = new HashMap<String, String>();
-    private ArrayList<String> queries = new ArrayList<String>();
+    private HashMap<String, ArrayList<SearchResult>> resultsOfQueriesInitiatedByThisNode = new HashMap<>(); //FileName->resultID-><"node:port:file1:file1:file3">
+    private HashMap<String, String> queryList = new HashMap<>(); //<QueryID,who sent it to this node>
+    private ArrayList<String> queriesInitiatedByThisNode = new ArrayList<>();
+
 
     private String serverHostName = Config.BOOTSTRAP_IP; //Bootstrap server ip
     private int serverHostPort = Config.BOOTSTRAP_PORT; //Bootstrap server port
