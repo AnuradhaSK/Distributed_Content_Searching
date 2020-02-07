@@ -156,13 +156,17 @@ public class Node implements Runnable {
 
     private ArrayList<String> search(String query) throws IOException {
         ArrayList<String> resultFiles = new ArrayList<>();
-        StringTokenizer st = new StringTokenizer(query, "_");
+        StringTokenizer st = new StringTokenizer(query.trim(), "_");
 
         while (st.hasMoreTokens()) {
             String token = st.nextToken();
             for (String file : files) {
                 if (file.toLowerCase().contains(token.toLowerCase())) {
-                    resultFiles.add(String.join("_", file.split(" ")));
+                    String delemeteredName = "";
+                    for (String i : file.split(" ")) {
+                        delemeteredName = delemeteredName + i + "_";
+                    }
+                    resultFiles.add(delemeteredName.substring(0, delemeteredName.length() - 1));
                 }
             }
         }
@@ -285,6 +289,7 @@ public class Node implements Runnable {
                     while (st.hasMoreTokens()) {
                         query = query + "_" + st.nextToken();
                     }
+                    query = query.substring(1, query.length());
 
                     String queryID = this.username + "_" + queriesInitiatedByThisNode.size();
                     queriesInitiatedByThisNode.add(queryID);
@@ -296,11 +301,14 @@ public class Node implements Runnable {
                         sendLocalSearchResults(0, searchResults, queryID);
                     }
                     if (initialHopCount > 0) {
-                        initiateRemoteSearch(query, initialHopCount, queryID, initialHopCount, ip, port);
+                        initiateRemoteSearch(query, initialHopCount - 1, queryID, initialHopCount, ip, port);
                     }
 
                 } else if (command.equals(Config.SER)) {
+                    //0046 SER 127.0.0.1 7777 _windows_8 1 node1_0 2
                     receivedQueryMessagesCount++;
+                    System.out.println("Message received from address " + incoming.getAddress().getHostAddress() + ":" +
+                            incoming.getPort() + " - " + dataReceived);
                     String searchNodeIP = st.nextToken();
                     String searchNodePort = st.nextToken();
                     String query = st.nextToken();
@@ -322,7 +330,10 @@ public class Node implements Runnable {
                     }
 
                 } else if (command.equals(Config.SEROK)) {
+                    // 0047 SEROK 2 127.0.0.1 7777 0 Windows_8 node1_0
                     //length SEROK no_files IP port hopsWhenFound filename1 filename2 ... ... IPOfNeighborRequested PortOfNeighbourRequested
+                    System.out.println("Message received from address " + incoming.getAddress().getHostAddress() + ":" +
+                            incoming.getPort() + " - " + dataReceived);
                     int fileCount = Integer.parseInt(st.nextToken());
                     String IPHavingFile = st.nextToken();
                     String portHavingFile = st.nextToken();
