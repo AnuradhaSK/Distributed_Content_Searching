@@ -28,4 +28,5 @@ public class Config {
     public static final String NODEUNREG = "NODEUNREG";
     public static final String ECHO = "ECHO";
     public static final String SEARCHFILE = "SEARCH";
+    public static final String DOWNLOAD = "DOWNLOAD";
 }
