@@ -30,9 +30,10 @@ public class Config {
     public static final String SEARCHFILE = "SEARCH";
     public static final String DOWNLOAD = "DOWNLOAD";
     public static final String FILECONTAINER = "/var/tmp/overlay/generated_files";
-    public static final String DOWNLODED = "/var/tmp/overlay/downloaded_files";
+    public static final String DOWNLOADED = "/var/tmp/overlay/downloaded_files";
     public static final String FILENAMESTEXT =  "/var/tmp/overlay/File Names.txt";
     public static final String GETSTATS = "GETSTATS";
     public static final String CLEARSTATS = "CLEARSTATS";
     public static final String SHOWROUTES = "SHOWROUTES";
+    public static final String LEAVENET = "LEAVENET";
 }
