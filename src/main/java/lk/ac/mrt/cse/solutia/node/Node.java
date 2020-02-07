@@ -31,7 +31,7 @@ public class Node implements Runnable {
     }};
     private HashMap<String, ArrayList<SearchResult>> resultsOfQueriesInitiatedByThisNode = new HashMap<>(); //FileName->resultID-><"node:port:file1:file1:file3">
     private HashMap<String, String> queryList = new HashMap<>(); //<QueryID,who sent it to this node>
-    private ArrayList<String> queriesInitiatedByThisNode = new ArrayList<String>();
+    private ArrayList<String> queriesInitiatedByThisNode = new ArrayList<>();
 
     private String serverHostName = Config.BOOTSTRAP_IP; //Bootstrap server ip
     private int serverHostPort = Config.BOOTSTRAP_PORT; //Bootstrap server port
@@ -107,9 +107,10 @@ public class Node implements Runnable {
                 } else if (errorCode.equals("9997")) {
                     // failed,   registered to another user, try a different IP and port
                     System.out.println("Command failed. IP and port already in use. Retry initiation with different IP and port");
+                    System.exit(0);
                 } else if (errorCode.equals("9996")) {
                     // failed,  can’t register. BS full.
-                    System.out.println("Cannot register more node. Server is full.");
+                    System.out.println("Cannot register more nodes. Server is full.");
                     System.exit(0);
                 }
             }
@@ -182,7 +183,6 @@ public class Node implements Runnable {
                 byte[] data = incoming.getData();
                 dataReceived = new String(data, 0, incoming.getLength());
                 dataReceived = dataReceived.trim();
-                System.out.println("Message received from address " + incoming.getAddress().getHostAddress() + " : " + incoming.getPort() + " - " + dataReceived);
 
                 StringTokenizer st = new StringTokenizer(dataReceived, " ");
 
@@ -190,8 +190,9 @@ public class Node implements Runnable {
                 String command = "";
                 String length = "";
 
-                //Handles separately because it is a user initiated command
-                if (firstToken.equals(Config.SEARCHFILE)) {
+                //Handles separately because they are user initiated commands
+                if (firstToken.equals(Config.SEARCHFILE) || firstToken.equals(Config.DOWNLOAD) ||
+                        firstToken.equals(Config.GETSTATS) || firstToken.equals(Config.CLEARSTATS)) {
                     command = firstToken;
                 } else {
                     length = firstToken;
@@ -199,6 +200,8 @@ public class Node implements Runnable {
                 }
 
                 if (command.equals(Config.JOIN)) {
+                    System.out.println("Message received from address " + incoming.getAddress().getHostAddress() + ":" +
+                            incoming.getPort() + " - " + dataReceived);
                     String reply = Config.JOINOK + " 0";
                     int msgLength = reply.length() + 5;
                     reply = format("%04d", msgLength) + " " + reply;
@@ -212,6 +215,8 @@ public class Node implements Runnable {
                     DatagramPacket dpReply = new DatagramPacket(reply.getBytes(), reply.getBytes().length, incoming.getAddress(), incoming.getPort());
                     sock.send(dpReply);
                 } else if (command.equals(Config.JOINOK)) {
+                    System.out.println("Message received from address " + incoming.getAddress().getHostAddress() + ":" +
+                            incoming.getPort() + " - " + dataReceived);
                     String status = st.nextToken();
                     if (status.equals("0")) {
                         System.out.println("Join successful");
@@ -219,9 +224,13 @@ public class Node implements Runnable {
                         System.out.println("Error while adding new node to routing table");
                     }
                 } else if (command.equals(Config.NODEUNREG)) {
+                    System.out.println("Message received from address " + incoming.getAddress().getHostAddress() + ":" +
+                            incoming.getPort() + " - " + dataReceived);
                     sendUnRegRequest();
 
                 } else if (command.equals(Config.UNROK)) {
+                    System.out.println("Message received from address " + incoming.getAddress().getHostAddress() + ":" +
+                            incoming.getPort() + " - " + dataReceived);
                     for (NodeNeighbour n : neighboursList) {
                         String message = Config.LEAVE + " " + ip + " " + port;
                         message = format("%04d", message.length() + 5) + " " + message;
@@ -233,6 +242,8 @@ public class Node implements Runnable {
 
 
                 } else if (command.equals(Config.LEAVE)) {
+                    System.out.println("Message received from address " + incoming.getAddress().getHostAddress() + ":" +
+                            incoming.getPort() + " - " + dataReceived);
                     String leaveIP = st.nextToken();
                     String message = Config.LEAVEOK;
                     int leavePort = Integer.parseInt(st.nextToken());
@@ -252,6 +263,8 @@ public class Node implements Runnable {
                     }
 
                 } else if (command.equals(Config.LEAVEOK)) {
+                    System.out.println("Message received from address " + incoming.getAddress().getHostAddress() + ":" +
+                            incoming.getPort() + " - " + dataReceived);
                     String status = st.nextToken();
                     if (status.equals("0")) {
                         System.out.println("Leave Successful");
@@ -260,9 +273,11 @@ public class Node implements Runnable {
                     }
 
                 } else if (command.equals(Config.SEARCHFILE)) {
-                    // SEARCHFILE query hopsToSearch
-                    String query = st.nextToken();
+                    System.out.println("Message received from address " + incoming.getAddress().getHostAddress() + ":" +
+                            incoming.getPort() + " - " + dataReceived);
+                    // SEARCHFILE hopsToSearch query
                     int initialHopCount = Integer.parseInt(st.nextToken());
+                    String query = st.nextToken();
                     String queryID = this.username + "_" + queriesInitiatedByThisNode.size();
                     queriesInitiatedByThisNode.add(queryID);
                     queryList.put(queryID, ip + ":" + port);
@@ -314,19 +329,28 @@ public class Node implements Runnable {
                                 resultsPerFileName = new ArrayList<>();
                             }
                             resultsPerFileName.add(new SearchResult(file, IPHavingFile, portHavingFile, hopsWhenFound));
-                            System.out.println("File Name : '" + file + "' (' nodeIP:'" + IPHavingFile + "' nodePort:'" + portHavingFile + "' hopsWheFound:'" + hopsWhenFound + "')");
+                            System.out.println("File Name : '" + file + "' (' nodeIP:'" + IPHavingFile + "' nodePort:'" + portHavingFile + "' hopsWhenFound:'" + hopsWhenFound + "')");
                         }
                     } else {
                         forwardSearchResults(Integer.parseInt(hopsWhenFound), resultFileList, queryID);
                     }
                 } else if (command.equals(Config.DOWNLOAD)) {
+                    System.out.println("Message received from address " + incoming.getAddress().getHostAddress() + ":" +
+                            incoming.getPort() + " - " + dataReceived);
                     //DOWNLOAD filename
                     String filename = st.nextToken();
                     if (resultsOfQueriesInitiatedByThisNode.containsKey(filename)) {
                         ArrayList<SearchResult> resultsPerFileName = resultsOfQueriesInitiatedByThisNode.get(filename);
                     } else {
-                        System.out.println("File you requested ti download is not available in search results");
+                        System.out.println("File you requested to download is not available in search results");
                     }
+                } else if (command.equals(Config.GETSTATS)) {
+
+                } else if (command.equals(Config.CLEARSTATS)) {
+                    this.resultsOfQueriesInitiatedByThisNode = new HashMap<>();
+                    this.queryList = new HashMap<>();
+                    this.queriesInitiatedByThisNode = new ArrayList<>();
+
                 }
             }
         } catch (IOException e) {

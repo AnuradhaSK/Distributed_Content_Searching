@@ -29,4 +29,6 @@ public class Config {
     public static final String ECHO = "ECHO";
     public static final String SEARCHFILE = "SEARCH";
     public static final String DOWNLOAD = "DOWNLOAD";
+    public static final String GETSTATS = "GETSTATS";
+    public static final String CLEARSTATS = "CLEARSTATS";
 }
