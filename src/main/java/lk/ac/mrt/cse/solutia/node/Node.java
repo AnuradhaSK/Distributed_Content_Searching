@@ -16,7 +16,8 @@ public class Node implements Runnable {
     private String username;
     private ArrayList<NodeNeighbour> neighboursList = new ArrayList<NodeNeighbour>();
     private String[] files; //files that owned by the node
-    HashMap<String, String> queries = new HashMap<String, String>();
+    private HashMap<String, String> queryResults = new HashMap<String, String>();
+    private ArrayList<String> queries = new ArrayList<String>();
 
     private String serverHostName = Config.BOOTSTRAP_IP; //Bootstrap server ip
     private int serverHostPort = Config.BOOTSTRAP_PORT; //Bootstrap server port
@@ -99,19 +100,6 @@ public class Node implements Runnable {
             Thread listner = new Thread(this);
             listner.start();
 
-//            while (true) {
-//                if (userInput.equals(Config.UNREG)) {//do the job number 1
-//                    System.out.println("done with job number 1");
-//
-//                } else if (userInput.equals(Config.SER)) {//do the job number 2
-//                    System.out.println("done with job number 2");
-//
-//                }
-//                else {//inform user in case of invalid choice.
-//                    System.out.println("Invalid command.");
-//                }
-//            }
-
         } catch (SocketTimeoutException ex) {
             System.out.println("Timeout error: " + ex.getMessage());
             ex.printStackTrace();
@@ -136,95 +124,165 @@ public class Node implements Runnable {
         }
     }
 
-    private void sendUnRegRequest() throws IOException{
-        DatagramSocket socket= new DatagramSocket();
-        String message= Config.UNREG +" "+ ip +" "+ port +" "+ username;
-        int msgLength = message.length()+5;
-        message = format("%04f", msgLength)+" "+ message;
+    private void sendUnRegRequest() throws IOException {
+        DatagramSocket socket = new DatagramSocket();
+        String message = Config.UNREG + " " + ip + " " + port + " " + username;
+        int msgLength = message.length() + 5;
+        message = format("%04f", msgLength) + " " + message;
         InetAddress address = InetAddress.getByName(serverHostName);
         DatagramPacket request = new DatagramPacket(message.getBytes(), message.getBytes().length, address, serverHostPort);
         socket.send(request);
-        System.out.println("Request sent: "+ message);
+        System.out.println("Request sent: " + message);
     }
 
-    private List<String> search(String query) {
-        List<String> resultFiles = new ArrayList<String>();
+    private String search(String query) throws IOException {
+        HashMap<String, ArrayList<String>> queryResults = new HashMap<String, ArrayList<String>>();
+        ArrayList<String> resultFiles = new ArrayList<String>();
+        String serializedObject = "";
         StringTokenizer st = new StringTokenizer(query, " ");
 
-        while(st.hasMoreTokens()) {
+        while (st.hasMoreTokens()) {
             String token = st.nextToken();
-            for (String file: files) {
+            for (String file : files) {
                 if (file.toLowerCase().contains(token.toLowerCase())) {
                     resultFiles.add(file);
                 }
             }
         }
-        return resultFiles;
+        queryResults.put(ip+":"+port, resultFiles);
+        ByteArrayOutputStream bo = new ByteArrayOutputStream();
+        ObjectOutputStream so = new ObjectOutputStream(bo);
+        so.writeObject(queryResults);
+        so.flush();
+        serializedObject = bo.toString();
+        return serializedObject;
     }
 
     public void run() {
         System.out.println("Node is listening on port " + port);
         DatagramSocket sock = null;
         String dataReceived;
-        while (true) {
 
-            try {
-                sock = new DatagramSocket(port);
+        try {
+            sock = new DatagramSocket(port);
 
-                while (true) {
-                    byte[] buffer = new byte[65536];
-                    DatagramPacket incoming = new DatagramPacket(buffer, buffer.length);
-                    sock.receive(incoming);
+            while (true) {
+                byte[] buffer = new byte[65536];
+                DatagramPacket incoming = new DatagramPacket(buffer, buffer.length);
+                sock.receive(incoming);
 
-                    byte[] data = incoming.getData();
-                    dataReceived = new String(data, 0, incoming.getLength());
+                byte[] data = incoming.getData();
+                dataReceived = new String(data, 0, incoming.getLength());
 
-                    System.out.println("Message received from address " + incoming.getAddress().getHostAddress() + " : " + incoming.getPort() + " - " + dataReceived);
+                System.out.println("Message received from address " + incoming.getAddress().getHostAddress() + " : " + incoming.getPort() + " - " + dataReceived);
 
-                    StringTokenizer st = new StringTokenizer(dataReceived, " ");
+                StringTokenizer st = new StringTokenizer(dataReceived, " ");
 
-                    String length = st.nextToken();
-                    String command = st.nextToken();
+                String firstToken = st.nextToken();
+                String command = "";
+                String length = "";
 
-                    if (command.equals(Config.JOIN)) {
-                        String reply = Config.JOINOK + " 0";
-                        int msgLength = reply.length() + 5;
-                        reply = format("%04d", msgLength) + " " + reply;
+                //Handles separately because it is a user initiated command
+                if (firstToken.equals(Config.SEARCHFILE)) {
+                    command = firstToken;
+                } else {
+                    length = firstToken;
+                    command = st.nextToken();
+                }
 
-                        String ip = st.nextToken();
-                        int port = Integer.parseInt(st.nextToken());
+                if (command.equals(Config.JOIN)) {
+                    String reply = Config.JOINOK + " 0";
+                    int msgLength = reply.length() + 5;
+                    reply = format("%04d", msgLength) + " " + reply;
 
-                        System.out.println(ip + ":" + port + " is joining node " + username);
-                        neighboursList.add(new NodeNeighbour(ip, port));
+                    String ip = st.nextToken();
+                    int port = Integer.parseInt(st.nextToken());
 
-                        DatagramPacket dpReply = new DatagramPacket(reply.getBytes(), reply.getBytes().length, incoming.getAddress(), incoming.getPort());
-                        sock.send(dpReply);
-                    } else if (command.equals(Config.JOINOK)) {
-                        String status = st.nextToken();
-                        if (status.equals("0")) {
-                            System.out.println("Join successful");
-                        } else if (status.equals("9999")) {
-                            System.out.println("Error while adding new node to routing table");
-                        }
-                    } else if (command.equals(Config.NODEUNREG)) {
-                        sendUnRegRequest();
-                    } else if (command.equals(Config.ECHO)) {
+                    System.out.println(ip + ":" + port + " is joining node " + username);
+                    neighboursList.add(new NodeNeighbour(ip, port));
 
-                    } else if (command.equals(Config.ECHO)) {
+                    DatagramPacket dpReply = new DatagramPacket(reply.getBytes(), reply.getBytes().length, incoming.getAddress(), incoming.getPort());
+                    sock.send(dpReply);
 
-                    } else if (command.equals(Config.ECHO)) {
-
-                    } else if (command.equals(Config.ECHO)) {
-
-                    } else if (command.equals(Config.ECHO)) {
-
+                } else if (command.equals(Config.JOINOK)) {
+                    String status = st.nextToken();
+                    if (status.equals("0")) {
+                        System.out.println("Join successful");
+                    } else if (status.equals("9999")) {
+                        System.out.println("Error while adding new node to routing table");
                     }
 
+                } else if (command.equals(Config.NODEUNREG)) {
+                    sendUnRegRequest();
+
+                } else if (command.equals(Config.SEARCHFILE)) {
+                    String query = st.nextToken();
+                    String queryID = this.username + "_" + "0";
+                    queries.add(queryID);
+                    String resultFiles = search(query);
+                    int initialHopCount = Config.HOP_COUNT;
+                    initiateRemoteSearch(query, initialHopCount, queryID);
+
+                } else if (command.equals(Config.SER)) {
+                    String searchNodeIP = st.nextToken();
+                    String searchNodePort = st.nextToken();
+                    String query = st.nextToken();
+                    int hopsLeft = Integer.parseInt(st.nextToken());
+                    String queryID = st.nextToken();
+                    if (queries.contains(queryID)) {
+                        System.out.println("Search request received is handled already in response to a request from another node");
+                    } else {
+                        queries.add(queryID);
+                        ArrayList<String> searchResults = search(query);
+                        if (hopsLeft > 0) {
+                            initiateRemoteSearch(query, hopsLeft - 1, queryID);
+                        }
+                    }
+
+                } else if (command.equals(Config.ECHO)) {
+
                 }
-            } catch (IOException e) {
-                System.err.println("IOException " + e);
+
+            }
+        } catch (IOException e) {
+            System.err.println("IOException " + e);
+        }
+
+    }
+
+
+    private void initiateRemoteSearch(String query, int hopCount, String queryID) throws IOException {
+        DatagramSocket sock = new DatagramSocket(port);
+        for (NodeNeighbour node : neighboursList) {
+            String message = Config.SER + " " + ip + " " + port + " " + query + " " + (hopCount - 1)
+                    + " " + queryID;
+            int msgLength = message.length() + 5;
+            message = format("%04d", msgLength) + " " + message;
+            DatagramPacket dpReply = new DatagramPacket(message.getBytes(), message.getBytes().length,
+                    InetAddress.getByName(node.getIp()), node.getPort());
+            sock.send(dpReply);
+            //TODO:: TTL
+        }
+        int responseCounter = 0;
+        while (responseCounter < neighboursList.size()) {
+            byte[] buffer = new byte[65536];
+            DatagramPacket incoming = new DatagramPacket(buffer, buffer.length);
+            sock.receive(incoming);
+
+            byte[] data = incoming.getData();
+            String dataReceived = new String(data, 0, incoming.getLength());
+
+            if (dataReceived.equals("skip")){
+                responseCounter++;
+                continue;
+            }
+             else{
+
             }
 
+            StringTokenizer st = new StringTokenizer(dataReceived, " ");
+
+            String firstToken = st.nextToken();
         }
     }
 }
