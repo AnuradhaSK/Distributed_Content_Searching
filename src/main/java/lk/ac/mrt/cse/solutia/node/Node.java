@@ -212,19 +212,6 @@ public class Node implements Runnable {
 
                     DatagramPacket dpReply = new DatagramPacket(reply.getBytes(), reply.getBytes().length, incoming.getAddress(), incoming.getPort());
                     sock.send(dpReply);
-
-                } else if (command.equals(Config.JOINOK)) {
-                    String status = st.nextToken();
-                    if (status.equals("0")) {
-                        System.out.println("Join successful");
-                    } else if (status.equals("9999")) {
-                        System.out.println("Error while adding new node to routing table");
-                    }
-
-                } else if (command.equals(Config.NODEUNREG)) {
-                    sendUnRegRequest();
-                        DatagramPacket dpReply = new DatagramPacket(reply.getBytes(), reply.getBytes().length, incoming.getAddress(), incoming.getPort());
-                        sock.send(dpReply);
                     } else if (command.equals(Config.JOINOK)) {
                         String status = st.nextToken();
                         if (status.equals("0")) {
