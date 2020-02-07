@@ -1,13 +1,9 @@
 package lk.ac.mrt.cse.solutia.node;
 
-import lk.ac.mrt.cse.solutia.bootsrtap_server.Neighbour;
 import lk.ac.mrt.cse.solutia.utils.Config;
 
 import java.util.*;
 
-import lk.ac.mrt.cse.solutia.model.File;
-
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Random;
 import java.util.Scanner;
@@ -23,23 +19,17 @@ public class Node implements Runnable {
     private String username;
     private DatagramSocket socket;
     private ArrayList<NodeNeighbour> neighboursList = new ArrayList<NodeNeighbour>();
-    //private String[] files; //files that owned by the node
-    private ArrayList<String> files = new ArrayList<String>() {{
-        add("Dinika");
-        add("Anu");
-        add("Shali");
-    }};
+    private ArrayList<String> files = new ArrayList<>(); //files that owned by the node
     private HashMap<String, ArrayList<SearchResult>> resultsOfQueriesInitiatedByThisNode = new HashMap<>(); //FileName->resultID-><"node:port:file1:file1:file3">
     private HashMap<String, String> queryList = new HashMap<>(); //<QueryID,who sent it to this node>
     private ArrayList<String> queriesInitiatedByThisNode = new ArrayList<>();
+
 
     private String serverHostName = Config.BOOTSTRAP_IP; //Bootstrap server ip
     private int serverHostPort = Config.BOOTSTRAP_PORT; //Bootstrap server port
 
     public void initiateNode() {
 
-        File file = new lk.ac.mrt.cse.solutia.model.File();
-        file.fileGenerate();
         String userInput;
         Scanner scanner = new Scanner(System.in);
 
@@ -60,6 +50,7 @@ public class Node implements Runnable {
 
         try {
             Runtime.getRuntime().exec("java -jar filetransfer-0.0.1-SNAPSHOT.jar");
+            this.directoryGenerator();
             InetAddress address = InetAddress.getByName(serverHostName);
             DatagramSocket socket = new DatagramSocket(port);
             this.socket = socket;
@@ -82,11 +73,13 @@ public class Node implements Runnable {
             if (nodeCount.equals("0")) {
                 // request is successful, no nodes in the system
                 System.out.println("Request is successful. " + username + " registered as first node in the system");
+                this.fileGenerate();
             } else if (nodeCount.equals("1")) {
                 // request is successful, 1 contact will be returned
                 String[] neighbour1 = reply.substring(13).split("\\s+");
                 neighboursList.add(new NodeNeighbour(neighbour1[0], Integer.parseInt(neighbour1[1])));
                 System.out.println("Request is successful. " + username + " registered as second node in the system. Sending 1 node contact to join with...");
+                this.fileGenerate();
                 sendJoinRequests();
             } else if (nodeCount.equals("2")) {
                 // request is successful, 2 contacts will be returned
@@ -94,6 +87,7 @@ public class Node implements Runnable {
                 neighboursList.add(new NodeNeighbour(neighbour1[0], Integer.parseInt(neighbour1[1])));
                 neighboursList.add(new NodeNeighbour(neighbour1[2], Integer.parseInt(neighbour1[3])));
                 System.out.println("Request is successful. Sending 2 node contacts to join with...");
+                this.fileGenerate();
                 sendJoinRequests();
             } else {
                 String errorCode = reply.substring(11, 15);
@@ -415,4 +409,84 @@ public class Node implements Runnable {
                 address, requestorPort);
         socket.send(request);
     }
+
+
+    private void fileGenerate() throws IOException {
+        ArrayList<String> fileNames = new ArrayList<>();
+        BufferedReader reader;
+        try {
+//            String path = "resources";
+//            ClassLoader classLoader = ClassLoader.getSystemClassLoader();
+//            path = classLoader.getResource(path).getPath().split("target")[0].substring(1)+"src/main/resources/File Names.txt";;
+
+            reader = new BufferedReader(new FileReader(Config.FILENAMESTEXT));
+            String line = reader.readLine();
+            while (line != null) {
+                line = reader.readLine();
+                fileNames.add(line);
+            }
+            System.out.println(fileNames.get(0));
+            reader.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        int number_of_files = getRandomNumberInRange(3,5);
+        System.out.println("number of files in the node:"+ number_of_files);
+        int i = 0;
+        Set file_numbers = new HashSet();
+        while (i < number_of_files) {
+            int file_index = getRandomNumberInRange(0,19);
+            System.out.println(file_index);
+            if(file_numbers.contains(file_index)){
+                continue;
+            }
+            i+=1;
+            file_numbers.add(file_index);
+            String file_name = fileNames.get(file_index);
+
+            System.out.println(file_name);
+            files.add(file_name);
+
+            int file_size = file_name.length()%10;
+            if (file_size < 2){
+                file_size = 2;
+            }
+
+            int FILE_SIZE = 1000 * 1000* file_size;
+            String file_path = Config.FILECONTAINER +"/"+ file_name ;
+
+            java.io.File file_write = new java.io.File(file_path);
+            try (BufferedWriter writer = Files.newBufferedWriter(file_write.toPath())) {
+                while (file_write.length() < FILE_SIZE) {
+                    writer.write(file_name);
+                    writer.flush();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        System.out.println("Files are generated to /var/tmp/overlay/generated_file folder");
+    }
+
+    private static int getRandomNumberInRange(int min, int max) {
+
+        if (min >= max) {
+            throw new IllegalArgumentException("max must be greater than min");
+        }
+
+        Random r = new Random();
+        return r.nextInt((max - min) + 1) + min;
+    }
+
+    private void directoryGenerator(){
+        File directory = new File(Config.DOWNLODED);
+        if (! directory.exists()){
+            directory.mkdir();
+        }
+        File directory2 = new File(Config.FILECONTAINER);
+        if (! directory2.exists()){
+            directory2.mkdir();
+        }
+    }
+
 }

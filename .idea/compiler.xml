@@ -12,7 +12,7 @@
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="distributed_content_searching" target="1.5" />
-      <module name="Distributed_Content_Searching" target="1.5" />
+      <module name="Distributed_Content_Searching" target="8" />
     </bytecodeTargetLevel>
   </component>
 </project>
