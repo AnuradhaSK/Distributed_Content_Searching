@@ -156,7 +156,7 @@ public class Node implements Runnable {
 
     private ArrayList<String> search(String query) throws IOException {
         ArrayList<String> resultFiles = new ArrayList<>();
-        StringTokenizer st = new StringTokenizer(query, " ");
+        StringTokenizer st = new StringTokenizer(query, "_");
 
         while (st.hasMoreTokens()) {
             String token = st.nextToken();
@@ -283,7 +283,7 @@ public class Node implements Runnable {
                     int initialHopCount = Integer.parseInt(st.nextToken());
                     String query = "";
                     while (st.hasMoreTokens()) {
-                        query = query + " " + st.nextToken();
+                        query = query + "_" + st.nextToken();
                     }
 
                     String queryID = this.username + "_" + queriesInitiatedByThisNode.size();
