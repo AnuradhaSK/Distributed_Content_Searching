@@ -17,6 +17,7 @@ public class Node implements Runnable {
     private String ip;
     private int port;
     private String username;
+    private DatagramSocket socket;
     private ArrayList<NodeNeighbour> neighboursList = new ArrayList<NodeNeighbour>();
     private ArrayList<String> files = new ArrayList<>(); //files that owned by the node
     private HashMap<String, String> queryResults = new HashMap<String, String>();
@@ -49,8 +50,8 @@ public class Node implements Runnable {
             Runtime.getRuntime().exec("java -jar filetransfer-0.0.1-SNAPSHOT.jar");
             this.directoryGenerator();
             InetAddress address = InetAddress.getByName(serverHostName);
-            DatagramSocket socket = new DatagramSocket();
-
+            DatagramSocket socket = new DatagramSocket(port);
+            this.socket = socket;
             String message = "REG " + ip + " " + port + " " + username;
             int msgLength = message.length() + 5;
             message = format("%04d", msgLength) + " " + message;
@@ -118,7 +119,7 @@ public class Node implements Runnable {
     }
 
     private void sendJoinRequests() throws IOException {
-        DatagramSocket socket = new DatagramSocket();
+        //DatagramSocket socket = new DatagramSocket(port);
 
         String message = Config.JOIN + " " + ip + " " + port;
         int msgLength = message.length() + 5;
@@ -133,7 +134,6 @@ public class Node implements Runnable {
     }
 
     private void sendUnRegRequest() throws IOException {
-        DatagramSocket socket = new DatagramSocket();
         String message = Config.UNREG + " " + ip + " " + port + " " + username;
         int msgLength = message.length() + 5;
         message = format("%04f", msgLength) + " " + message;
@@ -143,10 +143,8 @@ public class Node implements Runnable {
         System.out.println("Request sent: " + message);
     }
 
-    private String search(String query) throws IOException {
-        HashMap<String, ArrayList<String>> queryResults = new HashMap<String, ArrayList<String>>();
-        ArrayList<String> resultFiles = new ArrayList<String>();
-        String serializedObject = "";
+    private ArrayList<String> search(String query) throws IOException {
+        ArrayList<String> resultFiles = new ArrayList<>();
         StringTokenizer st = new StringTokenizer(query, " ");
 
         while (st.hasMoreTokens()) {
@@ -157,13 +155,7 @@ public class Node implements Runnable {
                 }
             }
         }
-        queryResults.put(ip + ":" + port, resultFiles);
-        ByteArrayOutputStream bo = new ByteArrayOutputStream();
-        ObjectOutputStream so = new ObjectOutputStream(bo);
-        so.writeObject(queryResults);
-        so.flush();
-        serializedObject = bo.toString();
-        return serializedObject;
+        return resultFiles;
     }
 
     public void run() {
@@ -172,8 +164,8 @@ public class Node implements Runnable {
         String dataReceived;
 
         try {
-            sock = new DatagramSocket(port);
-
+            //sock = new DatagramSocket(port);
+            sock = this.socket;
             while (true) {
                 byte[] buffer = new byte[65536];
                 DatagramPacket incoming = new DatagramPacket(buffer, buffer.length);
@@ -181,7 +173,7 @@ public class Node implements Runnable {
 
                 byte[] data = incoming.getData();
                 dataReceived = new String(data, 0, incoming.getLength());
-
+                dataReceived = dataReceived.trim();
                 System.out.println("Message received from address " + incoming.getAddress().getHostAddress() + " : " + incoming.getPort() + " - " + dataReceived);
 
                 StringTokenizer st = new StringTokenizer(dataReceived, " ");
@@ -260,12 +252,19 @@ public class Node implements Runnable {
                     }
 
                 } else if (command.equals(Config.SEARCHFILE)) {
+                    // SEARCHFILE query hopsToSearch
                     String query = st.nextToken();
-                    String queryID = this.username + "_" + "0";
-                    queries.add(queryID);
-                    String resultFiles = search(query);
-                    int initialHopCount = Config.HOP_COUNT;
-                    initiateRemoteSearch(query, initialHopCount, queryID);
+                    int initialHopCount = Integer.parseInt(st.nextToken());
+                    String queryID = this.username + "_" + queriesInitiatedByThisNode.size();
+                    queriesInitiatedByThisNode.add(queryID);
+                    queryList.put(queryID, ip + ":" + port);
+                    ArrayList<String> searchResults = search(query);
+                    if (searchResults.size() > 0) {
+                        sendLocalSearchResults(0, searchResults, queryID);
+                    }
+                    if (initialHopCount > 0) {
+                        initiateRemoteSearch(query, initialHopCount, queryID, initialHopCount, ip, port);
+                    }
 
                 } else if (command.equals(Config.SER)) {
                     String searchNodeIP = st.nextToken();
@@ -273,19 +272,54 @@ public class Node implements Runnable {
                     String query = st.nextToken();
                     int hopsLeft = Integer.parseInt(st.nextToken());
                     String queryID = st.nextToken();
-                    if (queries.contains(queryID)) {
+                    int initialHopCount = Integer.parseInt(st.nextToken());
+                    if (queryList.containsKey(queryID)) {
                         System.out.println("Search request received is handled already in response to a request from another node");
                     } else {
-                        queries.add(queryID);
-                        // ArrayList<String> searchResults = search(query);
+                        queryList.put(queryID, searchNodeIP + ":" + searchNodePort);
+                        ArrayList<String> searchResults = search(query);
+                        if (searchResults.size() > 0) {
+                            sendLocalSearchResults(initialHopCount - hopsLeft, searchResults, queryID);
+                        }
                         if (hopsLeft > 0) {
-                            initiateRemoteSearch(query, hopsLeft - 1, queryID);
+                            initiateRemoteSearch(query, hopsLeft - 1, queryID, initialHopCount, searchNodeIP, Integer.parseInt(searchNodePort));
                         }
                     }
 
-                } else if (command.equals(Config.ECHO)) {
+                } else if (command.equals(Config.SEROK)) {
+                    //length SEROK no_files IP port hopsWhenFound filename1 filename2 ... ... IPOfNeighborRequested PortOfNeighbourRequested
+                    int fileCount = Integer.parseInt(st.nextToken());
+                    String IPHavingFile = st.nextToken();
+                    String portHavingFile = st.nextToken();
+                    String hopsWhenFound = st.nextToken();
+                    ArrayList<String> resultFileList = new ArrayList<>();
+                    for (int i = 0; i < fileCount; i++) {
+                        resultFileList.add(st.nextToken());
+                    }
+                    String queryID = st.nextToken();
+                    if (queryList.get(queryID).split(":")[0].equals(this.ip)) {
+                        ArrayList<SearchResult> resultsPerFileName;
+                        for (String file : resultFileList) {
+                            if (resultsOfQueriesInitiatedByThisNode.containsKey(file)) {
+                                resultsPerFileName = resultsOfQueriesInitiatedByThisNode.get(file);
+                            } else {
+                                resultsPerFileName = new ArrayList<>();
+                            }
+                            resultsPerFileName.add(new SearchResult(file, IPHavingFile, portHavingFile, hopsWhenFound));
+                            System.out.println("File Name : '" + file + "' (' nodeIP:'" + IPHavingFile + "' nodePort:'" + portHavingFile + "' hopsWheFound:'" + hopsWhenFound + "')");
+                        }
+                    } else {
+                        forwardSearchResults(Integer.parseInt(hopsWhenFound), resultFileList, queryID);
+                    }
+                } else if (command.equals(Config.DOWNLOAD)) {
+                    //DOWNLOAD filename
+                    String filename = st.nextToken();
+                    if (resultsOfQueriesInitiatedByThisNode.containsKey(filename)) {
+                        ArrayList<SearchResult> resultsPerFileName = resultsOfQueriesInitiatedByThisNode.get(filename);
+                    } else {
+                        System.out.println("File you requested ti download is not available in search results");
+                    }
                 }
-
             }
         } catch (IOException e) {
             System.err.println("IOException " + e);
@@ -294,38 +328,60 @@ public class Node implements Runnable {
     }
 
 
-    private void initiateRemoteSearch(String query, int hopCount, String queryID) throws IOException {
-        DatagramSocket sock = new DatagramSocket(port);
+    private void initiateRemoteSearch(String query, int hopCount, String queryID, int initialHopCount, String senderIP, int senderPort) throws IOException {
+        DatagramSocket sock = this.socket;
         for (NodeNeighbour node : neighboursList) {
-            String message = Config.SER + " " + ip + " " + port + " " + query + " " + (hopCount - 1)
-                    + " " + queryID;
-            int msgLength = message.length() + 5;
-            message = format("%04d", msgLength) + " " + message;
-            DatagramPacket dpReply = new DatagramPacket(message.getBytes(), message.getBytes().length,
-                    InetAddress.getByName(node.getIp()), node.getPort());
-            sock.send(dpReply);
-            //TODO:: TTL
-        }
-        int responseCounter = 0;
-        while (responseCounter < neighboursList.size()) {
-            byte[] buffer = new byte[65536];
-            DatagramPacket incoming = new DatagramPacket(buffer, buffer.length);
-            sock.receive(incoming);
-
-            byte[] data = incoming.getData();
-            String dataReceived = new String(data, 0, incoming.getLength());
-
-            if (dataReceived.equals("skip")) {
-                responseCounter++;
+            if (node.getPort() == senderPort && node.getIp().equals(senderIP)) {
                 continue;
             } else {
-
+                String message = Config.SER + " " + ip + " " + port + " " + query + " " + (hopCount)
+                        + " " + queryID + " " + initialHopCount;
+                int msgLength = message.length() + 5;
+                message = format("%04d", msgLength) + " " + message;
+                DatagramPacket dpReply = new DatagramPacket(message.getBytes(), message.getBytes().length,
+                        InetAddress.getByName(node.getIp()), node.getPort());
+                sock.send(dpReply);
             }
-
-            StringTokenizer st = new StringTokenizer(dataReceived, " ");
-
-            String firstToken = st.nextToken();
         }
+
+    }
+
+    private void sendLocalSearchResults(int hopsWhenFound, ArrayList<String> searchResults, String queryID) throws IOException {
+
+        String requestorIP = queryList.get(queryID).split(":")[0];
+        int requestorPort = Integer.parseInt(queryList.get(queryID).split(":")[1]);
+        //length SEROK no_files IP port hopsWhenFound filename1 filename2 ... ... queryID
+        String fileSet = "";
+        for (String file : searchResults) {
+            fileSet = file + " ";
+        }
+        String message = Config.SEROK + " " + searchResults.size() + " " + ip + " " + port + " " + hopsWhenFound + " " + fileSet + queryID;
+        int msgLength = message.length() + 5;
+        message = format("%04d", msgLength) + " " + message;
+
+        InetAddress address = InetAddress.getByName(requestorIP);
+        DatagramPacket request = new DatagramPacket(message.getBytes(), message.getBytes().length,
+                address, requestorPort);
+        socket.send(request);
+    }
+
+    private void forwardSearchResults(int hopsWhenFound, ArrayList<String> searchResults, String queryID) throws IOException {
+
+        String requestorIP = queryList.get(queryID).split(":")[0];
+        int requestorPort = Integer.parseInt(queryList.get(queryID).split(":")[1]);
+        //length SEROK no_files IP port hopsWhenFound filename1 filename2 ... ... queryID
+        String fileSet = "";
+        for (String file : searchResults) {
+            fileSet = file + " ";
+        }
+        String message = Config.SEROK + " " + searchResults.size() + " " + ip + " " + port + " " + hopsWhenFound + " " + fileSet + queryID;
+        int msgLength = message.length() + 5;
+        message = format("%04d", msgLength) + " " + message;
+
+        InetAddress address = InetAddress.getByName(requestorIP);
+        DatagramPacket request = new DatagramPacket(message.getBytes(), message.getBytes().length,
+                address, requestorPort);
+        socket.send(request);
     }
 
 
