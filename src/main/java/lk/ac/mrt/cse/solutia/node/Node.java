@@ -211,13 +211,19 @@ public class Node implements Runnable {
                         sendUnRegRequest();
 
                     } else if (command.equals(Config.UNROK)) {
-                        for( NodeNeighbour n : neighboursList){
-                            String message= Config.LEAVE +" "+ ip +" "+ port;
-                            message = format("%04d", message.length()+5)+" "+ message;
-                            InetAddress address = InetAddress.getByName(n.getIp());
-                            DatagramPacket request= new DatagramPacket(message.getBytes(), message.getBytes().length, address, n.getPort());
-                            sock.send(request);
-                            System.out.println("Request sent: "+ message);
+                        String status = st.nextToken();
+                        if(status.equals("0")) {
+                            for (NodeNeighbour n : neighboursList) {
+                                String message = Config.LEAVE + " " + ip + " " + port;
+                                message = format("%04d", message.length() + 5) + " " + message;
+                                InetAddress address = InetAddress.getByName(n.getIp());
+                                DatagramPacket request = new DatagramPacket(message.getBytes(), message.getBytes().length, address, n.getPort());
+                                sock.send(request);
+                                System.out.println("Request sent: " + message);
+                            }
+                        }
+                        else if(status.equals("9999")){
+                            System.out.println("Error while unregistering the node");
                         }
 
 
@@ -241,8 +247,15 @@ public class Node implements Runnable {
                                 }
                             }
 
+                    } else if (command.equals(Config.LEAVEOK)) {
+                        String status= st.nextToken();
+                        if(status.equals("0")){
+                            System.out.println("Leave Successful");
+                        }
+                        else if(status.equals("9999")){
+                            System.out.println("Leave Faild");
+                        }
 
-                    } else if (command.equals(Config.ECHO)) {
 
                     } else if (command.equals(Config.ECHO)) {
 
