@@ -253,6 +253,14 @@ public class Node implements Runnable {
                                 }
                             }
 
+                } else if(command.equals(Config.LEAVEOK)){
+                    String status= st.nextToken();
+                    if(status.equals("0")){
+                        System.out.println("Leave Successful");
+                    }
+                    else if(status.equals("9999")){
+                        System.out.println("Leave Faild");
+                    }
 
                 } else if (command.equals(Config.SEARCHFILE)) {
                     String query = st.nextToken();
