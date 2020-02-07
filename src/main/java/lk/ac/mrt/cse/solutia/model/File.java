@@ -27,7 +27,7 @@ public class File {
         BufferedReader reader;
         try {
             fileNames= new ArrayList<String>();
-            reader = new BufferedReader(new FileReader("file_names"));
+            reader = new BufferedReader(new FileReader("/var/tmp/file_names"));
             String line = reader.readLine();
             while (line != null) {
                 System.out.println(line);                // read next line
