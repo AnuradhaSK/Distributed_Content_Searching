@@ -15,72 +15,32 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 public class File {
-    String name;
-    String content;
-    String hash;
-    ArrayList<String> fileNames;
+    private String name;
+    private String content;
+    private String hash;
 
-
-    public void fileGenerate(){
-
-        Scanner scanner = null;
-        BufferedReader reader;
-        try {
-            fileNames= new ArrayList<String>();
-            reader = new BufferedReader(new FileReader("/var/tmp/file_names"));
-            String line = reader.readLine();
-            while (line != null) {
-
-                line = reader.readLine();
-                fileNames.add(line);
-
-            }
-            reader.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-
-        int number_of_files = getRandomNumberInRange(3,5);
-
-
-        for (int i = 0; i < number_of_files; i++) {
-            int file_index = getRandomNumberInRange(0,19);
-            String file_name = fileNames.get(file_index);
-
-            int file_size = file_name.length()%10;
-            if (file_size<2){
-                file_size= 2;
-            }
-
-            int FILE_SIZE = 1000 * 1000* file_size;
-            String file_path = "/var/tmp/" + file_name ;
-
-            java.io.File file_write = new java.io.File(file_path);
-
-
-            try (BufferedWriter writer = Files.newBufferedWriter(file_write.toPath())) {
-                while (file_write.length() < FILE_SIZE) {
-                    writer.write(file_name);
-                    writer.flush();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        System.out.println("Files are generated to /var/tmp folder");
-
-
+    public String getContent() {
+        return content;
     }
 
-    private static int getRandomNumberInRange(int min, int max) {
+    public String getHash() {
+        return hash;
+    }
 
-        if (min >= max) {
-            throw new IllegalArgumentException("max must be greater than min");
-        }
+    public String getName() {
+        return name;
+    }
 
-        Random r = new Random();
-        return r.nextInt((max - min) + 1) + min;
+    public void setContent(String content) {
+        this.content = content;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setHash(String hash) {
+        this.hash = hash;
     }
 
     public String generateHash(String filename){

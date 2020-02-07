@@ -1,12 +1,9 @@
 package lk.ac.mrt.cse.solutia.node;
 
-import lk.ac.mrt.cse.solutia.bootsrtap_server.Neighbour;
 import lk.ac.mrt.cse.solutia.utils.Config;
 
 import java.util.*;
-import lk.ac.mrt.cse.solutia.model.File;
 
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Random;
 import java.util.Scanner;
@@ -21,7 +18,7 @@ public class Node implements Runnable {
     private int port;
     private String username;
     private ArrayList<NodeNeighbour> neighboursList = new ArrayList<NodeNeighbour>();
-    private String[] files; //files that owned by the node
+    private ArrayList<String> files = new ArrayList<>(); //files that owned by the node
     private HashMap<String, String> queryResults = new HashMap<String, String>();
     private ArrayList<String> queries = new ArrayList<String>();
 
@@ -30,8 +27,6 @@ public class Node implements Runnable {
 
     public void initiateNode() {
 
-        File file = new lk.ac.mrt.cse.solutia.model.File();
-        file.fileGenerate();
         String userInput;
         Scanner scanner = new Scanner(System.in);
 
@@ -52,6 +47,7 @@ public class Node implements Runnable {
 
         try {
             Runtime.getRuntime().exec("java -jar filetransfer-0.0.1-SNAPSHOT.jar");
+            this.directoryGenerator();
             InetAddress address = InetAddress.getByName(serverHostName);
             DatagramSocket socket = new DatagramSocket();
 
@@ -74,11 +70,13 @@ public class Node implements Runnable {
             if (nodeCount.equals("0")) {
                 // request is successful, no nodes in the system
                 System.out.println("Request is successful. " + username + " registered as first node in the system");
+                this.fileGenerate();
             } else if (nodeCount.equals("1")) {
                 // request is successful, 1 contact will be returned
                 String[] neighbour1 = reply.substring(13).split("\\s+");
                 neighboursList.add(new NodeNeighbour(neighbour1[0], Integer.parseInt(neighbour1[1])));
                 System.out.println("Request is successful. " + username + " registered as second node in the system. Sending 1 node contact to join with...");
+                this.fileGenerate();
                 sendJoinRequests();
             } else if (nodeCount.equals("2")) {
                 // request is successful, 2 contacts will be returned
@@ -86,6 +84,7 @@ public class Node implements Runnable {
                 neighboursList.add(new NodeNeighbour(neighbour1[0], Integer.parseInt(neighbour1[1])));
                 neighboursList.add(new NodeNeighbour(neighbour1[2], Integer.parseInt(neighbour1[3])));
                 System.out.println("Request is successful. Sending 2 node contacts to join with...");
+                this.fileGenerate();
                 sendJoinRequests();
             } else {
                 String errorCode = reply.substring(11, 15);
@@ -158,7 +157,7 @@ public class Node implements Runnable {
                 }
             }
         }
-        queryResults.put(ip+":"+port, resultFiles);
+        queryResults.put(ip + ":" + port, resultFiles);
         ByteArrayOutputStream bo = new ByteArrayOutputStream();
         ObjectOutputStream so = new ObjectOutputStream(bo);
         so.writeObject(queryResults);
@@ -212,53 +211,51 @@ public class Node implements Runnable {
 
                     DatagramPacket dpReply = new DatagramPacket(reply.getBytes(), reply.getBytes().length, incoming.getAddress(), incoming.getPort());
                     sock.send(dpReply);
-                    } else if (command.equals(Config.JOINOK)) {
-                        String status = st.nextToken();
-                        if (status.equals("0")) {
-                            System.out.println("Join successful");
-                        } else if (status.equals("9999")) {
-                            System.out.println("Error while adding new node to routing table");
-                        }
-                    } else if (command.equals(Config.NODEUNREG)) {
-                        sendUnRegRequest();
-
-                    } else if (command.equals(Config.UNROK)) {
-                        for( NodeNeighbour n : neighboursList){
-                            String message= Config.LEAVE +" "+ ip +" "+ port;
-                            message = format("%04d", message.length()+5)+" "+ message;
-                            InetAddress address = InetAddress.getByName(n.getIp());
-                            DatagramPacket request= new DatagramPacket(message.getBytes(), message.getBytes().length, address, n.getPort());
-                            sock.send(request);
-                            System.out.println("Request sent: "+ message);
-                        }
-
-
-                    } else if (command.equals(Config.LEAVE)) {
-                            String leaveIP= st.nextToken();
-                            String message= Config.LEAVEOK;
-                            int leavePort= Integer.parseInt(st.nextToken());
-                            for(NodeNeighbour n : neighboursList){
-                                if(n.getPort()== leavePort){
-                                    if(neighboursList.remove(n)){
-                                        message= message+" 0";
-                                    }
-                                    else{
-                                        message= message+" 9999";
-                                    }
-                                    message= String.format("%04d", message.length()+5)+ " "+ message;
-                                    DatagramPacket request= new DatagramPacket(message.getBytes(),
-                                            message.getBytes().length, incoming.getAddress(), incoming.getPort());
-                                    sock.send(request);
-                                    System.out.println("Request sent: "+ message);
-                                }
-                            }
-
-                } else if(command.equals(Config.LEAVEOK)){
-                    String status= st.nextToken();
-                    if(status.equals("0")){
-                        System.out.println("Leave Successful");
+                } else if (command.equals(Config.JOINOK)) {
+                    String status = st.nextToken();
+                    if (status.equals("0")) {
+                        System.out.println("Join successful");
+                    } else if (status.equals("9999")) {
+                        System.out.println("Error while adding new node to routing table");
                     }
-                    else if(status.equals("9999")){
+                } else if (command.equals(Config.NODEUNREG)) {
+                    sendUnRegRequest();
+
+                } else if (command.equals(Config.UNROK)) {
+                    for (NodeNeighbour n : neighboursList) {
+                        String message = Config.LEAVE + " " + ip + " " + port;
+                        message = format("%04d", message.length() + 5) + " " + message;
+                        InetAddress address = InetAddress.getByName(n.getIp());
+                        DatagramPacket request = new DatagramPacket(message.getBytes(), message.getBytes().length, address, n.getPort());
+                        sock.send(request);
+                        System.out.println("Request sent: " + message);
+                    }
+
+
+                } else if (command.equals(Config.LEAVE)) {
+                    String leaveIP = st.nextToken();
+                    String message = Config.LEAVEOK;
+                    int leavePort = Integer.parseInt(st.nextToken());
+                    for (NodeNeighbour n : neighboursList) {
+                        if (n.getPort() == leavePort) {
+                            if (neighboursList.remove(n)) {
+                                message = message + " 0";
+                            } else {
+                                message = message + " 9999";
+                            }
+                            message = String.format("%04d", message.length() + 5) + " " + message;
+                            DatagramPacket request = new DatagramPacket(message.getBytes(),
+                                    message.getBytes().length, incoming.getAddress(), incoming.getPort());
+                            sock.send(request);
+                            System.out.println("Request sent: " + message);
+                        }
+                    }
+
+                } else if (command.equals(Config.LEAVEOK)) {
+                    String status = st.nextToken();
+                    if (status.equals("0")) {
+                        System.out.println("Leave Successful");
+                    } else if (status.equals("9999")) {
                         System.out.println("Leave Faild");
                     }
 
@@ -280,14 +277,14 @@ public class Node implements Runnable {
                         System.out.println("Search request received is handled already in response to a request from another node");
                     } else {
                         queries.add(queryID);
-                       // ArrayList<String> searchResults = search(query);
+                        // ArrayList<String> searchResults = search(query);
                         if (hopsLeft > 0) {
                             initiateRemoteSearch(query, hopsLeft - 1, queryID);
                         }
                     }
 
-                    } else if (command.equals(Config.ECHO)) {
-                    }
+                } else if (command.equals(Config.ECHO)) {
+                }
 
             }
         } catch (IOException e) {
@@ -318,11 +315,10 @@ public class Node implements Runnable {
             byte[] data = incoming.getData();
             String dataReceived = new String(data, 0, incoming.getLength());
 
-            if (dataReceived.equals("skip")){
+            if (dataReceived.equals("skip")) {
                 responseCounter++;
                 continue;
-            }
-             else{
+            } else {
 
             }
 
@@ -331,4 +327,84 @@ public class Node implements Runnable {
             String firstToken = st.nextToken();
         }
     }
+
+
+    private void fileGenerate() throws IOException {
+        ArrayList<String> fileNames = new ArrayList<>();
+        BufferedReader reader;
+        try {
+//            String path = "resources";
+//            ClassLoader classLoader = ClassLoader.getSystemClassLoader();
+//            path = classLoader.getResource(path).getPath().split("target")[0].substring(1)+"src/main/resources/File Names.txt";;
+
+            reader = new BufferedReader(new FileReader(Config.FILENAMESTEXT));
+            String line = reader.readLine();
+            while (line != null) {
+                line = reader.readLine();
+                fileNames.add(line);
+            }
+            System.out.println(fileNames.get(0));
+            reader.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        int number_of_files = getRandomNumberInRange(3,5);
+        System.out.println("number of files in the node:"+ number_of_files);
+        int i = 0;
+        Set file_numbers = new HashSet();
+        while (i < number_of_files) {
+            int file_index = getRandomNumberInRange(0,19);
+            System.out.println(file_index);
+            if(file_numbers.contains(file_index)){
+                continue;
+            }
+            i+=1;
+            file_numbers.add(file_index);
+            String file_name = fileNames.get(file_index);
+
+            System.out.println(file_name);
+            files.add(file_name);
+
+            int file_size = file_name.length()%10;
+            if (file_size < 2){
+                file_size = 2;
+            }
+
+            int FILE_SIZE = 1000 * 1000* file_size;
+            String file_path = Config.FILECONTAINER +"/"+ file_name ;
+
+            java.io.File file_write = new java.io.File(file_path);
+            try (BufferedWriter writer = Files.newBufferedWriter(file_write.toPath())) {
+                while (file_write.length() < FILE_SIZE) {
+                    writer.write(file_name);
+                    writer.flush();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        System.out.println("Files are generated to /var/tmp/overlay/generated_file folder");
+    }
+
+    private static int getRandomNumberInRange(int min, int max) {
+
+        if (min >= max) {
+            throw new IllegalArgumentException("max must be greater than min");
+        }
+
+        Random r = new Random();
+        return r.nextInt((max - min) + 1) + min;
+    }
+
+    private void directoryGenerator(){
+        File directory = new File(Config.DOWNLODED);
+        if (! directory.exists()){
+            directory.mkdir();
+        }
+        File directory2 = new File(Config.FILECONTAINER);
+        if (! directory2.exists()){
+            directory2.mkdir();
+        }
+    }
+
 }
