@@ -6,12 +6,14 @@ public class SearchResult {
     private String hostIP;
     private String hostPort;
     private String hopsToReach;
+    private long timeElapsed;
 
-    public SearchResult(String filename, String hostIP, String hostPort, String hopsToReach) {
+    public SearchResult(String filename, String hostIP, String hostPort, String hopsToReach, long timeElapsed) {
         this.filename = filename;
         this.hostIP = hostIP;
         this.hostPort = hostPort;
         this.hopsToReach = hopsToReach;
+        this.timeElapsed = timeElapsed;
     }
 
     public String getFilename() {
@@ -28,6 +30,10 @@ public class SearchResult {
 
     public String getHopsToReach() {
         return hopsToReach;
+    }
+
+    public long getTimeElapsed() {
+        return timeElapsed;
     }
 
 }

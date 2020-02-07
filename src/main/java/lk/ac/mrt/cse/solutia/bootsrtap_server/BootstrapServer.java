@@ -63,9 +63,10 @@ public class BootstrapServer {
                         }
                         if (isOkay) {
                             if (nodes.size() == 1) {
-                                reply += "1 " + nodes.get(0).getIp() + " " + nodes.get(0).getPort();
+                                reply += "1 " + nodes.get(0).getIp() + " " + nodes.get(0).getPort() + " " + nodes.get(0).getUsername();
                             } else if (nodes.size() == 2) {
-                                reply += "2 " + nodes.get(0).getIp() + " " + nodes.get(0).getPort() + " " + nodes.get(1).getIp() + " " + nodes.get(1).getPort();
+                                reply += "2 " + nodes.get(0).getIp() + " " + nodes.get(0).getPort() + " " + nodes.get(0).getUsername()
+                                        + " " + nodes.get(1).getIp() + " " + nodes.get(1).getPort() + " " + nodes.get(1).getUsername();
                             } else {
                                 Random r = new Random();
                                 int Low = 0;
@@ -76,7 +77,8 @@ public class BootstrapServer {
                                     random_2 = r.nextInt(High - Low) + Low;
                                 }
                                 echo(random_1 + " " + random_2);
-                                reply += "2 " + nodes.get(random_1).getIp() + " " + nodes.get(random_1).getPort() + " " + nodes.get(random_2).getIp() + " " + nodes.get(random_2).getPort();
+                                reply += "2 " + nodes.get(random_1).getIp() + " " + nodes.get(random_1).getPort() + " " + nodes.get(random_1).getUsername() + " " + nodes.get(random_2).getIp() + " " +
+                                        nodes.get(random_2).getPort() + " " + nodes.get(random_2).getUsername();
                             }
                             nodes.add(new Neighbour(ip, port, username));
                         }

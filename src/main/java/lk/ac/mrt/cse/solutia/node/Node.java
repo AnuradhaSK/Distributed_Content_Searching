@@ -9,6 +9,8 @@ import java.util.Random;
 import java.util.Scanner;
 import java.io.*;
 import java.net.*;
+import java.time.Duration;
+import java.time.Instant;
 
 import static java.lang.String.format;
 
@@ -22,8 +24,12 @@ public class Node implements Runnable {
     private ArrayList<String> files = new ArrayList<>(); //files that owned by the node
     private HashMap<String, ArrayList<SearchResult>> resultsOfQueriesInitiatedByThisNode = new HashMap<>(); //FileName->resultID-><"node:port:file1:file1:file3">
     private HashMap<String, String> queryList = new HashMap<>(); //<QueryID,who sent it to this node>
+    private HashMap<String, Instant> querySearchStartTime = new HashMap<>(); //<QueryID,searchStartTime>
     private ArrayList<String> queriesInitiatedByThisNode = new ArrayList<>();
 
+    private int receivedQueryMessagesCount = 0;
+    private int forwardedQueryMessagesCount = 0;
+    private int answeredQueryMessagesCount = 0;
 
     private String serverHostName = Config.BOOTSTRAP_IP; //Bootstrap server ip
     private int serverHostPort = Config.BOOTSTRAP_PORT; //Bootstrap server port
@@ -77,15 +83,15 @@ public class Node implements Runnable {
             } else if (nodeCount.equals("1")) {
                 // request is successful, 1 contact will be returned
                 String[] neighbour1 = reply.substring(13).split("\\s+");
-                neighboursList.add(new NodeNeighbour(neighbour1[0], Integer.parseInt(neighbour1[1])));
+                neighboursList.add(new NodeNeighbour(neighbour1[0], Integer.parseInt(neighbour1[1]), neighbour1[2]));
                 System.out.println("Request is successful. " + username + " registered as second node in the system. Sending 1 node contact to join with...");
                 this.fileGenerate();
                 sendJoinRequests();
             } else if (nodeCount.equals("2")) {
                 // request is successful, 2 contacts will be returned
                 String[] neighbour1 = reply.substring(13).split("\\s+");
-                neighboursList.add(new NodeNeighbour(neighbour1[0], Integer.parseInt(neighbour1[1])));
-                neighboursList.add(new NodeNeighbour(neighbour1[2], Integer.parseInt(neighbour1[3])));
+                neighboursList.add(new NodeNeighbour(neighbour1[0], Integer.parseInt(neighbour1[1]), neighbour1[2]));
+                neighboursList.add(new NodeNeighbour(neighbour1[3], Integer.parseInt(neighbour1[4]), neighbour1[5]));
                 System.out.println("Request is successful. Sending 2 node contacts to join with...");
                 this.fileGenerate();
                 sendJoinRequests();
@@ -124,7 +130,7 @@ public class Node implements Runnable {
     private void sendJoinRequests() throws IOException {
         //DatagramSocket socket = new DatagramSocket(port);
 
-        String message = Config.JOIN + " " + ip + " " + port;
+        String message = Config.JOIN + " " + ip + " " + port + " " + username;
         int msgLength = message.length() + 5;
         message = format("%04d", msgLength) + " " + message;
 
@@ -186,7 +192,8 @@ public class Node implements Runnable {
 
                 //Handles separately because they are user initiated commands
                 if (firstToken.equals(Config.SEARCHFILE) || firstToken.equals(Config.DOWNLOAD) ||
-                        firstToken.equals(Config.GETSTATS) || firstToken.equals(Config.CLEARSTATS)) {
+                        firstToken.equals(Config.GETSTATS) || firstToken.equals(Config.CLEARSTATS) ||
+                        firstToken.equals(Config.SHOWROUTES)) {
                     command = firstToken;
                 } else {
                     length = firstToken;
@@ -202,9 +209,10 @@ public class Node implements Runnable {
 
                     String ip = st.nextToken();
                     int port = Integer.parseInt(st.nextToken());
+                    String username = st.nextToken();
 
                     System.out.println(ip + ":" + port + " is joining node " + username);
-                    neighboursList.add(new NodeNeighbour(ip, port));
+                    neighboursList.add(new NodeNeighbour(ip, port, username));
 
                     DatagramPacket dpReply = new DatagramPacket(reply.getBytes(), reply.getBytes().length, incoming.getAddress(), incoming.getPort());
                     sock.send(dpReply);
@@ -271,10 +279,16 @@ public class Node implements Runnable {
                             incoming.getPort() + " - " + dataReceived);
                     // SEARCHFILE hopsToSearch query
                     int initialHopCount = Integer.parseInt(st.nextToken());
-                    String query = st.nextToken();
+                    String query = "";
+                    while (st.hasMoreTokens()) {
+                        query = query + " " + st.nextToken();
+                    }
+
                     String queryID = this.username + "_" + queriesInitiatedByThisNode.size();
                     queriesInitiatedByThisNode.add(queryID);
                     queryList.put(queryID, ip + ":" + port);
+                    Instant searchStartTime = Instant.now();
+                    querySearchStartTime.put(queryID, searchStartTime);
                     ArrayList<String> searchResults = search(query);
                     if (searchResults.size() > 0) {
                         sendLocalSearchResults(0, searchResults, queryID);
@@ -284,6 +298,7 @@ public class Node implements Runnable {
                     }
 
                 } else if (command.equals(Config.SER)) {
+                    receivedQueryMessagesCount++;
                     String searchNodeIP = st.nextToken();
                     String searchNodePort = st.nextToken();
                     String query = st.nextToken();
@@ -296,6 +311,7 @@ public class Node implements Runnable {
                         queryList.put(queryID, searchNodeIP + ":" + searchNodePort);
                         ArrayList<String> searchResults = search(query);
                         if (searchResults.size() > 0) {
+                            answeredQueryMessagesCount++;
                             sendLocalSearchResults(initialHopCount - hopsLeft, searchResults, queryID);
                         }
                         if (hopsLeft > 0) {
@@ -322,8 +338,12 @@ public class Node implements Runnable {
                             } else {
                                 resultsPerFileName = new ArrayList<>();
                             }
-                            resultsPerFileName.add(new SearchResult(file, IPHavingFile, portHavingFile, hopsWhenFound));
-                            System.out.println("File Name : '" + file + "' (' nodeIP:'" + IPHavingFile + "' nodePort:'" + portHavingFile + "' hopsWhenFound:'" + hopsWhenFound + "')");
+                            Instant searchEndTime = Instant.now();
+                            Instant searchStartTime = querySearchStartTime.get(queryID);
+                            Duration timeElapsed = Duration.between(searchStartTime, searchEndTime);
+                            System.out.println("File Name : '" + file + "' (' nodeIP:'" + IPHavingFile + "' nodePort:'" + portHavingFile + "' hopsWhenFound:'" +
+                                    hopsWhenFound + "')\n timeElapsedForSearching: " + timeElapsed.toMillis() + "ms");
+                            resultsPerFileName.add(new SearchResult(file, IPHavingFile, portHavingFile, hopsWhenFound, timeElapsed.toMillis()));
                         }
                     } else {
                         forwardSearchResults(Integer.parseInt(hopsWhenFound), resultFileList, queryID);
@@ -339,12 +359,24 @@ public class Node implements Runnable {
                         System.out.println("File you requested to download is not available in search results");
                     }
                 } else if (command.equals(Config.GETSTATS)) {
+                    System.out.println("Node : " + username + " - " + ip + ":" + port + " search statistics");
+                    System.out.println("Queries received : " + receivedQueryMessagesCount);
+                    System.out.println("Queries answered : " + answeredQueryMessagesCount);
+                    System.out.println("Queries forwarded : " + forwardedQueryMessagesCount);
 
                 } else if (command.equals(Config.CLEARSTATS)) {
                     this.resultsOfQueriesInitiatedByThisNode = new HashMap<>();
                     this.queryList = new HashMap<>();
                     this.queriesInitiatedByThisNode = new ArrayList<>();
-
+                    receivedQueryMessagesCount = 0;
+                    forwardedQueryMessagesCount = 0;
+                    answeredQueryMessagesCount = 0;
+                } else if (command.equals(Config.SHOWROUTES)) {
+                    System.out.println("Routing table for node : " + username + " - " + ip + ":" + port);
+                    System.out.println("Username | IP Address | Port");
+                    for (NodeNeighbour node : neighboursList) {
+                        System.out.println(node.getUsername() + " | " + node.getIp() + " | " + node.getPort());
+                    }
                 }
             }
         } catch (IOException e) {
@@ -360,6 +392,7 @@ public class Node implements Runnable {
             if (node.getPort() == senderPort && node.getIp().equals(senderIP)) {
                 continue;
             } else {
+                forwardedQueryMessagesCount++;
                 String message = Config.SER + " " + ip + " " + port + " " + query + " " + (hopCount)
                         + " " + queryID + " " + initialHopCount;
                 int msgLength = message.length() + 5;

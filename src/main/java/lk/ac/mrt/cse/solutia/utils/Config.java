@@ -34,4 +34,5 @@ public class Config {
     public static final String FILENAMESTEXT =  "/var/tmp/overlay/File Names.txt";
     public static final String GETSTATS = "GETSTATS";
     public static final String CLEARSTATS = "CLEARSTATS";
+    public static final String SHOWROUTES = "SHOWROUTES";
 }
