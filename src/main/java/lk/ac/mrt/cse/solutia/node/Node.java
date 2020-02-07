@@ -280,7 +280,7 @@ public class Node implements Runnable {
                         System.out.println("Search request received is handled already in response to a request from another node");
                     } else {
                         queries.add(queryID);
-                        ArrayList<String> searchResults = search(query);
+                       // ArrayList<String> searchResults = search(query);
                         if (hopsLeft > 0) {
                             initiateRemoteSearch(query, hopsLeft - 1, queryID);
                         }
