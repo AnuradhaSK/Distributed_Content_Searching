@@ -94,10 +94,12 @@ public class Node implements Runnable {
                 if (errorCode.equals("9999")) {
                     // failed, there is some error in the command
                     System.out.println("Command failed. There is some error in the command. Retry node initiation.");
+                    System.exit(0);
                 } else if (errorCode.equals("9998")) {
                     // failed,  already registered to you, unregister first
-                    sendUnRegRequest();
                     System.out.println("Command failed. Node is already registered. Unregister using \'UNREG\' command.");
+                    sendUnRegRequest();
+                    System.exit(0);
                 } else if (errorCode.equals("9997")) {
                     // failed,   registered to another user, try a different IP and port
                     System.out.println("Command failed. IP and port already in use. Retry initiation with different IP and port");
@@ -139,7 +141,7 @@ public class Node implements Runnable {
     private void sendUnRegRequest() throws IOException {
         String message = Config.UNREG + " " + ip + " " + port + " " + username;
         int msgLength = message.length() + 5;
-        message = format("%04f", msgLength) + " " + message;
+        message = format("%04d", msgLength) + " " + message;
         InetAddress address = InetAddress.getByName(serverHostName);
         DatagramPacket request = new DatagramPacket(message.getBytes(), message.getBytes().length, address, serverHostPort);
         socket.send(request);
@@ -154,7 +156,7 @@ public class Node implements Runnable {
             String token = st.nextToken();
             for (String file : files) {
                 if (file.toLowerCase().contains(token.toLowerCase())) {
-                    resultFiles.add(file);
+                    resultFiles.add(String.join("_", file.split(" ")));
                 }
             }
         }
@@ -186,7 +188,7 @@ public class Node implements Runnable {
 
                 //Handles separately because they are user initiated commands
                 if (firstToken.equals(Config.SEARCHFILE) || firstToken.equals(Config.DOWNLOAD) ||
-                        firstToken.equals(Config.GETSTATS) || firstToken.equals(Config.CLEARSTATS)) {
+                        firstToken.equals(Config.GETSTATS) || firstToken.equals(Config.CLEARSTATS) || firstToken.equals(Config.LEAVENET)) {
                     command = firstToken;
                 } else {
                     length = firstToken;
@@ -242,7 +244,7 @@ public class Node implements Runnable {
                     String message = Config.LEAVEOK;
                     int leavePort = Integer.parseInt(st.nextToken());
                     for (NodeNeighbour n : neighboursList) {
-                        if (n.getPort() == leavePort) {
+                        if (n.getIp() == leaveIP && n.getPort() == leavePort) {
                             if (neighboursList.remove(n)) {
                                 message = message + " 0";
                             } else {
@@ -335,6 +337,15 @@ public class Node implements Runnable {
                     String filename = st.nextToken();
                     if (resultsOfQueriesInitiatedByThisNode.containsKey(filename)) {
                         ArrayList<SearchResult> resultsPerFileName = resultsOfQueriesInitiatedByThisNode.get(filename);
+                        //select the closest node to download the file
+                        int min_hop = Integer.parseInt(resultsPerFileName.get(0).getHopsToReach());
+                        SearchResult selected_node = resultsPerFileName.get(0);
+                        for(SearchResult result : resultsPerFileName) {
+                            if(Integer.parseInt(result.getHopsToReach()) < min_hop) {
+                                selected_node = result;
+                            }
+                        }
+                        this.download(selected_node.getHostIP(),selected_node.getHostPort(),String.join( " ", selected_node.getFilename().split("_")));
                     } else {
                         System.out.println("File you requested to download is not available in search results");
                     }
@@ -345,6 +356,8 @@ public class Node implements Runnable {
                     this.queryList = new HashMap<>();
                     this.queriesInitiatedByThisNode = new ArrayList<>();
 
+                } else if (command.equals(Config.LEAVENET)) {
+                    sendUnRegRequest();
                 }
             }
         } catch (IOException e) {
@@ -408,6 +421,45 @@ public class Node implements Runnable {
         DatagramPacket request = new DatagramPacket(message.getBytes(), message.getBytes().length,
                 address, requestorPort);
         socket.send(request);
+    }
+
+    private void download(String ip, String port, String filename) throws IOException {
+        URL url = null;
+        try {
+            url = new URL("http://"+ ip +":8080/downloadFile/" + filename);
+        } catch (MalformedURLException e) {
+            throw new Error("Either no legal protocol could be found in a specification string or the string could not be parsed");
+        }
+        HttpURLConnection con = null;
+        try {
+            con = (HttpURLConnection) url.openConnection();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try {
+            con.setRequestMethod("GET");        //creating a GET request
+        } catch (ProtocolException e) {
+            e.printStackTrace();
+        }
+
+        //set timeouts
+        con.setConnectTimeout(15000);
+        con.setReadTimeout(15000);
+
+        BufferedReader br = new BufferedReader(new InputStreamReader(
+                (con.getInputStream())));
+
+        String output;
+        System.out.println("Starting Downloading .... \n");
+        String path = Config.DOWNLOADED;
+        BufferedWriter writer = new BufferedWriter(new FileWriter(path));
+        while ((output = br.readLine()) != null) {
+            writer.write(output);
+            writer.write("\n");
+        }
+        writer.close();
+        con.disconnect();
+        System.out.println("Downloading Completed\n");
     }
 
 
@@ -479,7 +531,7 @@ public class Node implements Runnable {
     }
 
     private void directoryGenerator(){
-        File directory = new File(Config.DOWNLODED);
+        File directory = new File(Config.DOWNLOADED);
         if (! directory.exists()){
             directory.mkdir();
         }
