@@ -4,6 +4,7 @@ public class Config {
     //Bootstrap details
     public static String BOOTSTRAP_IP = "127.0.0.1";
     public static int BOOTSTRAP_PORT = 55555;
+    public static int HOP_COUNT = 3;
 
     //Messages
     public static final String REG = "REG";
@@ -26,4 +27,5 @@ public class Config {
     public static final String PINGOK = "PINGOK";
     public static final String NODEUNREG = "NODEUNREG";
     public static final String ECHO = "ECHO";
+    public static final String SEARCHFILE = "SEARCH";
 }

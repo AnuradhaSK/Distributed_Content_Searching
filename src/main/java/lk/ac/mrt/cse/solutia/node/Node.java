@@ -246,17 +246,7 @@ public class Node implements Runnable {
                                     System.out.println("Request sent: "+ message);
                                 }
                             }
-
-                    } else if (command.equals(Config.LEAVEOK)) {
-                        String status= st.nextToken();
-                        if(status.equals("0")){
-                            System.out.println("Leave Successful");
-                        }
-                        else if(status.equals("9999")){
-                            System.out.println("Leave Faild");
-                        }
-
-
+                            
                     } else if (command.equals(Config.ECHO)) {
 
                     } else if (command.equals(Config.ECHO)) {
