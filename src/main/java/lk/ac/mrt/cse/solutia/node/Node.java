@@ -4,6 +4,12 @@ import lk.ac.mrt.cse.solutia.bootsrtap_server.Neighbour;
 import lk.ac.mrt.cse.solutia.utils.Config;
 
 import java.util.*;
+import lk.ac.mrt.cse.solutia.model.File;
+
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.Random;
+import java.util.Scanner;
 import java.io.*;
 import java.net.*;
 
@@ -22,8 +28,10 @@ public class Node implements Runnable {
     private String serverHostName = Config.BOOTSTRAP_IP; //Bootstrap server ip
     private int serverHostPort = Config.BOOTSTRAP_PORT; //Bootstrap server port
 
-
     public void initiateNode() {
+
+        File file = new lk.ac.mrt.cse.solutia.model.File();
+        file.fileGenerate();
         String userInput;
         Scanner scanner = new Scanner(System.in);
 
@@ -43,6 +51,7 @@ public class Node implements Runnable {
         this.username = userInput;
 
         try {
+            Runtime.getRuntime().exec("java -jar filetransfer-0.0.1-SNAPSHOT.jar");
             InetAddress address = InetAddress.getByName(serverHostName);
             DatagramSocket socket = new DatagramSocket();
 
@@ -214,6 +223,49 @@ public class Node implements Runnable {
 
                 } else if (command.equals(Config.NODEUNREG)) {
                     sendUnRegRequest();
+                        DatagramPacket dpReply = new DatagramPacket(reply.getBytes(), reply.getBytes().length, incoming.getAddress(), incoming.getPort());
+                        sock.send(dpReply);
+                    } else if (command.equals(Config.JOINOK)) {
+                        String status = st.nextToken();
+                        if (status.equals("0")) {
+                            System.out.println("Join successful");
+                        } else if (status.equals("9999")) {
+                            System.out.println("Error while adding new node to routing table");
+                        }
+                    } else if (command.equals(Config.NODEUNREG)) {
+                        sendUnRegRequest();
+
+                    } else if (command.equals(Config.UNROK)) {
+                        for( NodeNeighbour n : neighboursList){
+                            String message= Config.LEAVE +" "+ ip +" "+ port;
+                            message = format("%04d", message.length()+5)+" "+ message;
+                            InetAddress address = InetAddress.getByName(n.getIp());
+                            DatagramPacket request= new DatagramPacket(message.getBytes(), message.getBytes().length, address, n.getPort());
+                            sock.send(request);
+                            System.out.println("Request sent: "+ message);
+                        }
+
+
+                    } else if (command.equals(Config.LEAVE)) {
+                            String leaveIP= st.nextToken();
+                            String message= Config.LEAVEOK;
+                            int leavePort= Integer.parseInt(st.nextToken());
+                            for(NodeNeighbour n : neighboursList){
+                                if(n.getPort()== leavePort){
+                                    if(neighboursList.remove(n)){
+                                        message= message+" 0";
+                                    }
+                                    else{
+                                        message= message+" 9999";
+                                    }
+                                    message= String.format("%04d", message.length()+5)+ " "+ message;
+                                    DatagramPacket request= new DatagramPacket(message.getBytes(),
+                                            message.getBytes().length, incoming.getAddress(), incoming.getPort());
+                                    sock.send(request);
+                                    System.out.println("Request sent: "+ message);
+                                }
+                            }
+
 
                 } else if (command.equals(Config.SEARCHFILE)) {
                     String query = st.nextToken();
@@ -239,9 +291,8 @@ public class Node implements Runnable {
                         }
                     }
 
-                } else if (command.equals(Config.ECHO)) {
-
-                }
+                    } else if (command.equals(Config.ECHO)) {
+                    }
 
             }
         } catch (IOException e) {
