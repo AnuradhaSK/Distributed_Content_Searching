@@ -1,5 +1,6 @@
 package lk.ac.mrt.cse.solutia.node;
 
+//import com.sun.deploy.util.StringUtils;
 import lk.ac.mrt.cse.solutia.utils.Config;
 
 import java.nio.charset.StandardCharsets;
@@ -169,7 +170,10 @@ public class Node implements Runnable {
                     for (String i : file.split(" ")) {
                         delemeteredName = delemeteredName + i + "_";
                     }
-                    resultFiles.add(delemeteredName.substring(0, delemeteredName.length() - 1));
+                    String fileNew = delemeteredName.substring(0, delemeteredName.length() - 1);
+                    if (!resultFiles.contains(fileNew)) {
+                        resultFiles.add(delemeteredName.substring(0, delemeteredName.length() - 1));
+                    }
                 }
             }
         }
@@ -294,7 +298,7 @@ public class Node implements Runnable {
                         query = query + "_" + st.nextToken();
                     }
                     query = query.substring(1, query.length());
-
+                    System.out.println("Searching for : '" + query + "'");
                     String queryID = this.username + "_" + queriesInitiatedByThisNode.size();
                     queriesInitiatedByThisNode.add(queryID);
                     queryList.put(queryID, ip + ":" + port);
