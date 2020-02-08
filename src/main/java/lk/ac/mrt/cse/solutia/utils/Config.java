@@ -2,7 +2,7 @@ package lk.ac.mrt.cse.solutia.utils;
 
 public class Config {
     //Bootstrap details
-    public static String BOOTSTRAP_IP = "10.10.51.136";
+    public static String BOOTSTRAP_IP = "127.0.0.1";
     public static int BOOTSTRAP_PORT = 55555;
     public static int HOP_COUNT = 3;
 
