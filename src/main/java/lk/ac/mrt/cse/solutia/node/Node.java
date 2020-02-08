@@ -161,7 +161,7 @@ public class Node implements Runnable {
         while (st.hasMoreTokens()) {
             String token = st.nextToken();
             for (String file : files) {
-                if (file.toLowerCase().contains(token.toLowerCase())) {
+                if (Arrays.asList(file.toLowerCase().split(" ")).contains(token.toLowerCase())) {
                     String delemeteredName = "";
                     for (String i : file.split(" ")) {
                         delemeteredName = delemeteredName + i + "_";
@@ -199,7 +199,7 @@ public class Node implements Runnable {
                 //Handles separately because they are user initiated commands
                 if (firstToken.equals(Config.SEARCHFILE) || firstToken.equals(Config.DOWNLOAD) ||
                         firstToken.equals(Config.GETSTATS) || firstToken.equals(Config.CLEARSTATS) ||
-                        firstToken.equals(Config.SHOWROUTES)) {
+                        firstToken.equals(Config.SHOWROUTES) || firstToken.equals(Config.LEAVENET)) {
                     command = firstToken;
                 } else {
                     length = firstToken;
@@ -256,7 +256,7 @@ public class Node implements Runnable {
                     String message = Config.LEAVEOK;
                     int leavePort = Integer.parseInt(st.nextToken());
                     for (NodeNeighbour n : neighboursList) {
-                        if (n.getIp() == leaveIP && n.getPort() == leavePort) {
+                        if (n.getIp().equals(leaveIP) && n.getPort() == leavePort) {
                             if (neighboursList.remove(n)) {
                                 message = message + " 0";
                             } else {
@@ -267,6 +267,7 @@ public class Node implements Runnable {
                                     message.getBytes().length, incoming.getAddress(), incoming.getPort());
                             sock.send(request);
                             System.out.println("Request sent: " + message);
+                            break;
                         }
                     }
 
@@ -298,6 +299,7 @@ public class Node implements Runnable {
                     querySearchStartTime.put(queryID, searchStartTime);
                     ArrayList<String> searchResults = search(query);
                     if (searchResults.size() > 0) {
+                        answeredQueryMessagesCount++;
                         sendLocalSearchResults(0, searchResults, queryID);
                     }
                     if (initialHopCount > 0) {
@@ -305,7 +307,6 @@ public class Node implements Runnable {
                     }
 
                 } else if (command.equals(Config.SER)) {
-                    //0046 SER 127.0.0.1 7777 _windows_8 1 node1_0 2
                     receivedQueryMessagesCount++;
                     System.out.println("Message received from address " + incoming.getAddress().getHostAddress() + ":" +
                             incoming.getPort() + " - " + dataReceived);
@@ -330,8 +331,7 @@ public class Node implements Runnable {
                     }
 
                 } else if (command.equals(Config.SEROK)) {
-                    // 0047 SEROK 2 127.0.0.1 7777 0 Windows_8 node1_0
-                    //length SEROK no_files IP port hopsWhenFound filename1 filename2 ... ... IPOfNeighborRequested PortOfNeighbourRequested
+                    //length SEROK no_files IP port hopsWhenFound filename1 filename2 ... ... queryID
                     System.out.println("Message received from address " + incoming.getAddress().getHostAddress() + ":" +
                             incoming.getPort() + " - " + dataReceived);
                     int fileCount = Integer.parseInt(st.nextToken());
@@ -343,7 +343,8 @@ public class Node implements Runnable {
                         resultFileList.add(st.nextToken());
                     }
                     String queryID = st.nextToken();
-                    if (queryList.get(queryID).split(":")[0].equals(this.ip)) {
+                    if (queryList.get(queryID).split(":")[0].equals(this.ip) &&
+                            Integer.parseInt(queryList.get(queryID).split(":")[1]) == (this.port)) {
                         ArrayList<SearchResult> resultsPerFileName;
                         for (String file : resultFileList) {
                             if (resultsOfQueriesInitiatedByThisNode.containsKey(file)) {
