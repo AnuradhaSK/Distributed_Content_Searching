@@ -369,6 +369,17 @@ public class Node implements Runnable {
                     String filename = st.nextToken();
                     if (resultsOfQueriesInitiatedByThisNode.containsKey(filename)) {
                         ArrayList<SearchResult> resultsPerFileName = resultsOfQueriesInitiatedByThisNode.get(filename);
+                        int min_hop = Integer.parseInt(resultsPerFileName.get(0).getHopsToReach());
+                        SearchResult selected_node = resultsPerFileName.get(0);
+                        for (SearchResult result : resultsPerFileName) {
+                            if(Integer.parseInt(result.getHopsToReach()) < min_hop) {
+                                min_hop = Integer.parseInt(result.getHopsToReach());
+                                selected_node = result;
+                            }
+                        }
+                        this.download(selected_node.getHostIP(),filename);
+
+
                     } else {
                         System.out.println("File you requested to download is not available in search results");
                     }
@@ -394,6 +405,8 @@ public class Node implements Runnable {
                 }
                 else if (command.equals(Config.LEAVENET)) {
                     sendUnRegRequest();
+                } else {
+                    System.out.println("Invalid Command!");
                 }
             }
         } catch (IOException e) {
@@ -460,7 +473,7 @@ public class Node implements Runnable {
         socket.send(request);
     }
 
-    private void download(String ip, String port, String filename) throws IOException {
+    private void download(String ip, String filename) throws IOException {
         URL url = null;
         try {
             url = new URL("http://"+ ip +":8080/downloadFile/" + filename);
