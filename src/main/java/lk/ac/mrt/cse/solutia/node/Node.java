@@ -362,6 +362,7 @@ public class Node implements Runnable {
                             System.out.println("File Name : '" + file + "' (' nodeIP:'" + IPHavingFile + "' nodePort:'" + portHavingFile + "' hopsWhenFound:'" +
                                     hopsWhenFound + "')\n timeElapsedForSearching: " + timeElapsed.toMillis() + "ms");
                             resultsPerFileName.add(new SearchResult(file, IPHavingFile, portHavingFile, hopsWhenFound, timeElapsed.toMillis()));
+                            resultsOfQueriesInitiatedByThisNode.put(file,resultsPerFileName);
                         }
                     } else {
                         forwardSearchResults(Integer.parseInt(hopsWhenFound), resultFileList, queryID);
@@ -371,8 +372,11 @@ public class Node implements Runnable {
                             incoming.getPort() + " - " + dataReceived);
                     //DOWNLOAD filename
                     String filename = st.nextToken();
+                    System.out.println(filename);
+                    System.out.println(resultsOfQueriesInitiatedByThisNode.size());
                     if (resultsOfQueriesInitiatedByThisNode.containsKey(filename)) {
                         ArrayList<SearchResult> resultsPerFileName = resultsOfQueriesInitiatedByThisNode.get(filename);
+                        System.out.println(resultsPerFileName.size());
                         int min_hop = Integer.parseInt(resultsPerFileName.get(0).getHopsToReach());
                         SearchResult selected_node = resultsPerFileName.get(0);
                         for (SearchResult result : resultsPerFileName) {
@@ -478,6 +482,7 @@ public class Node implements Runnable {
     }
 
     private void download(String ip, String filename) throws IOException {
+        filename = String.join("%20",filename.split("_"));
         URL url = null;
         try {
             url = new URL("http://"+ ip +":8080/downloadFile/" + filename);
@@ -505,7 +510,7 @@ public class Node implements Runnable {
 
         String output;
         System.out.println("Starting Downloading .... \n");
-        String path = Config.DOWNLOADED;
+        String path = Config.DOWNLOADED +"/"+ String.join(" ", filename.split("%20"));
         BufferedWriter writer = new BufferedWriter(new FileWriter(path));
         while ((output = br.readLine()) != null) {
             writer.write(output);
