@@ -2,6 +2,9 @@ package lk.ac.mrt.cse.solutia.node;
 
 import lk.ac.mrt.cse.solutia.utils.Config;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 import java.nio.file.Files;
@@ -381,7 +384,11 @@ public class Node implements Runnable {
                                 selected_node = result;
                             }
                         }
-                        this.download(selected_node.getHostIP(),filename);
+                        try {
+                            this.download(selected_node.getHostIP(),filename);
+                        } catch (NoSuchAlgorithmException e) {
+                            e.printStackTrace();
+                        }
 
 
                     } else {
@@ -477,7 +484,7 @@ public class Node implements Runnable {
         socket.send(request);
     }
 
-    private void download(String ip, String filename) throws IOException {
+    private void download(String ip, String filename) throws IOException, NoSuchAlgorithmException {
         filename = String.join("%20",filename.split("_"));
         URL url = null;
         try {
@@ -514,6 +521,12 @@ public class Node implements Runnable {
         }
         writer.close();
         con.disconnect();
+
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] hash = digest.digest(output.getBytes(StandardCharsets.UTF_8));
+        String encoded = Base64.getEncoder().encodeToString(hash);
+        System.out.println("File: " + filename + "Hash:" + encoded);
+
         System.out.println("Downloading Completed\n");
     }
 
